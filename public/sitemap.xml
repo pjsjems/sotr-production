@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://spyontherise.com/</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/#catalog</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/#catalog"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/#catalog"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/#catalog"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/#catalog"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?page=series-list</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?page=series-list"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?page=series-list"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?page=series-list"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?page=series-list"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?page=bundles</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?page=bundles"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?page=bundles"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?page=bundles"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?page=bundles"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=mercer1</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=mercer1"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=mercer1"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=mercer1"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=mercer1"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=mercer2</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=mercer2"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=mercer2"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=mercer2"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=mercer2"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=mercer3</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=mercer3"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=mercer3"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=mercer3"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=mercer3"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=mercer7</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=mercer7"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=mercer7"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=mercer7"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=mercer7"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=anatomy1</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=anatomy1"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=anatomy1"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=anatomy1"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=anatomy1"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=anatomy2</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=anatomy2"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=anatomy2"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=anatomy2"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=anatomy2"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=anatomy3</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=anatomy3"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=anatomy3"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=anatomy3"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=anatomy3"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=crooked1</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=crooked1"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=crooked1"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=crooked1"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=crooked1"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=chess</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=chess"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=chess"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=chess"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=chess"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=chokepoints</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=chokepoints"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=chokepoints"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=chokepoints"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=chokepoints"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=evaporating</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=evaporating"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=evaporating"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=evaporating"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=evaporating"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=seatrial</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=seatrial"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=seatrial"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=seatrial"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=seatrial"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=warorbits</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=warorbits"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=warorbits"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=warorbits"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=warorbits"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=iran</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=iran"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=iran"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=iran"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=iran"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=atlas</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=atlas"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=atlas"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=atlas"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=atlas"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=teacher</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=teacher"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=teacher"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=teacher"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=teacher"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=neural</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=neural"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=neural"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=neural"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=neural"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=invisible</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=invisible"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=invisible"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=invisible"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=invisible"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?book=haiti</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?book=haiti"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?book=haiti"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?book=haiti"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?book=haiti"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?series=mercer</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?series=mercer"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?series=mercer"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?series=mercer"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?series=mercer"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?series=anatomy</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?series=anatomy"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?series=anatomy"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?series=anatomy"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?series=anatomy"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?series=crooked</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?series=crooked"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?series=crooked"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?series=crooked"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?series=crooked"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?series=ir</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?series=ir"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?series=ir"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?series=ir"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?series=ir"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?series=poetry</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?series=poetry"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?series=poetry"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?series=poetry"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?series=poetry"/>
+  </url>
+  <url>
+    <loc>https://spyontherise.com/?series=little</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://spyontherise.com/?series=little"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://spyontherise.com/fr/?series=little"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://spyontherise.com/es/?series=little"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://spyontherise.com/?series=little"/>
+  </url>
+</urlset>
