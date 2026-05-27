@@ -590,30 +590,39 @@ const BUNDLES = [
 ══════════════════════════════════════ */
 function buildCover(b, size='normal'){
   const fs = size==='small' ? '10px' : size==='mini' ? '8px' : '13px';
-  const hasCover = !!(b.image);
-  const bgImg = hasCover
-    ? `<img src="${b.image}" class="book-cover-img" loading="lazy" alt="">`
-    : `<div class="book-cover-bg" style="background:${b.color};"></div>`;
+
+  const imgHtml = b.image
+    ? `<img src="${b.image}?v=${Date.now()}" alt="${b.title.replace(/"/g,'')}"
+         loading="lazy"
+         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"
+         onerror="this.style.display='none'">`
+    : '';
+
   if(!b.available){
-    return `<div class="book-cover book-cover-unavail">
-      ${bgImg}
-      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;text-align:center;">
+    return `<div class="book-cover book-cover-unavail" style="position:relative;">
+      <div class="book-cover-bg" style="background:${b.color};"></div>
+      ${imgHtml ? `<div style="position:absolute;inset:0;overflow:hidden;border-radius:inherit;">${imgHtml}<div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div></div>` : ''}
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;text-align:center;z-index:2;">
         <div class="unavail-icon">🔒</div>
         <div class="unavail-label en">${b.release||'Coming Soon'}</div>
         <div class="unavail-label fr">${b.release||'À Venir'}</div>
         <div class="unavail-label es">${b.release||'Próximamente'}</div>
-        <div style="font-family:var(--display);font-size:${fs};font-weight:700;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.25;">${b.title}</div>
+        <div style="font-family:var(--display);font-size:${fs};font-weight:700;color:rgba(255,255,255,0.75);margin-top:6px;line-height:1.25;">${b.title}</div>
       </div>
-      ${b.release && b.release!=='TBD' ? `<div class="release-banner">${b.release}</div>` : ''}
+      ${b.release && b.release!=='TBD' ? `<div class="release-banner" style="z-index:3;">${b.release}</div>` : ''}
     </div>`;
   }
-  return `<div class="book-cover">
-    ${bgImg}
-    <div class="book-cover-top"><span class="bc-genre-pill">${b.genre}</span></div>
-    <div class="book-cover-overlay">
-      <div class="bc-orn">${b.orn}</div>
+
+  return `<div class="book-cover" style="position:relative;">
+    <div class="book-cover-bg" style="background:${b.color};"></div>
+    ${imgHtml ? `<div style="position:absolute;inset:0;overflow:hidden;border-radius:inherit;">${imgHtml}</div>` : ''}
+    <div class="book-cover-top" style="position:absolute;top:.7rem;left:.7rem;right:.7rem;z-index:2;">
+      <span class="bc-genre-pill">${b.genre}</span>
+    </div>
+    <div class="book-cover-overlay" style="z-index:2;">
+      ${!b.image ? `<div class="bc-orn">${b.orn}</div>
       <div class="bc-title-text" style="font-size:${fs};">${b.title}</div>
-      ${b.subtitle && !b.subtitle.includes('Coming') ? `<div class="bc-subtitle-text">${b.subtitle}</div>` : ''}
+      ${b.subtitle && !b.subtitle.includes('Coming') ? `<div class="bc-subtitle-text">${b.subtitle}</div>` : ''}` : ''}
     </div>
   </div>`;
 }
@@ -703,21 +712,29 @@ function openBook(key){
   document.getElementById('mh-subtitle').textContent = b.subtitle || '';
   document.getElementById('mh-meta').innerHTML = `<span>${b.lang}</span><span style="margin:0 5px;opacity:.25;">·</span><span>${b.pages}</span><span style="margin:0 5px;opacity:.25;">·</span><span>${b.series}</span>`;
   // Unavailable notice + email signup
+  const _safeTitle = b.title.replace(/'/g,'').replace(/"/g,'');
   document.getElementById('mh-unavail').innerHTML = !b.available
-    ? `<div class="unavail-notice">
-        <div class="un-title en">Coming ${b.release||'Soon'} &mdash; Details being finalized</div>
-        <div class="un-title fr">Sortie ${b.release||'Prochaine'} &mdash; D&eacute;tails en cours de finalisation</div>
-        <div class="un-title es">Llegando ${b.release||'Pronto'} &mdash; Detalles en preparaci&oacute;n</div>
-        <div class="un-body en">Be notified on release day.</div>
-        <div class="un-body fr">Soyez notifi&eacute; le jour de la sortie.</div>
-        <div class="un-body es">Recibe una notificaci&oacute;n el d&iacute;a del lanzamiento.</div>
-        <div class="un-signup">
-          <input class="un-email-inp" type="email" id="un-email-${b.key}" placeholder="your@email.com" />
-          <button class="un-notify-btn" onclick="notifySignup('${b.key}')">
-            <span class="en">Notify Me</span><span class="fr">M&#39;alerter</span><span class="es">Notificarme</span>
-          </button>
+    ? `<div class="unavail-notice" id="unavail-${b.key}">
+        <div class="un-title en">Coming ${b.release||'Soon'}</div>
+        <div class="un-title fr">Sortie ${b.release||'prochaine'}</div>
+        <div class="un-title es">Llegando ${b.release||'pronto'}</div>
+        <div class="un-body en">Be the first to know when this title launches.</div>
+        <div class="un-body fr">Soyez le premier inform&eacute; du lancement.</div>
+        <div class="un-body es">S&eacute; el primero en saber cuando se lance.</div>
+        <div id="unf-${b.key}">
+          <div style="display:flex;gap:6px;margin-top:.6rem;flex-wrap:wrap;">
+            <input type="email" id="un-inp-${b.key}" class="un-email-inp"
+              placeholder="your@email.com" autocomplete="email"
+              onkeydown="if(event.key==='Enter')notifySignup('${b.key}','${_safeTitle}')"/>
+            <button class="un-notify-btn"
+              onclick="notifySignup('${b.key}','${_safeTitle}')">
+              <span class="en">Notify Me</span>
+              <span class="fr">M'avertir</span>
+              <span class="es">Notificarme</span>
+            </button>
+          </div>
+          <div id="un-msg-${b.key}" style="display:none;font-size:12px;margin-top:6px;"></div>
         </div>
-        <div id="un-msg-${b.key}" style="font-family:var(--ui);font-size:11px;margin-top:4px;display:none;color:var(--gold-border);"></div>
       </div>`
     : '';
   // Synopsis
@@ -757,49 +774,52 @@ function openBook(key){
   document.body.style.overflow='hidden';
 }
 
-async function notifySignup(bookKey) {
-  const b = BOOKS[bookKey];
-  const input = document.getElementById('un-email-' + bookKey);
+async function notifySignup(bookKey, bookTitle) {
+  const input = document.getElementById('un-inp-' + bookKey);
   const msgEl = document.getElementById('un-msg-' + bookKey);
+  const formEl = document.getElementById('unf-' + bookKey);
   if (!input || !msgEl) return;
-  const email = input.value.trim();
-  if (!email || !email.includes('@')) {
+
+  const email = (input.value || '').trim();
+  if (!email || !email.includes('@') || !email.includes('.')) {
     msgEl.style.display = 'block';
-    msgEl.style.color = 'var(--gold-border)';
+    msgEl.style.color = '#E57373';
     msgEl.textContent = 'Please enter a valid email address.';
     return;
   }
-  const btn = input.parentElement.querySelector('.un-notify-btn');
-  if (btn) btn.disabled = true;
+
+  const btn = formEl ? formEl.querySelector('.un-notify-btn') : null;
+  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
+
   try {
     const lang = document.body.getAttribute('data-lang') || 'en';
     const r = await fetch('/api/newsletter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, lang, bookKey, type: 'prelaunch' }),
+      body: JSON.stringify({ email, lang, bookKey, bookTitle: bookTitle || bookKey, type: 'prelaunch' }),
     });
     const d = await r.json();
-    msgEl.style.display = 'block';
-    if (d.success) {
-      const title = b ? b.title : bookKey;
-      const msgs = {
-        en: "You're on the list for " + title + ".",
-        fr: 'Vous êtes sur la liste pour ' + title + '.',
-        es: 'Estás en la lista para ' + title + '.',
-      };
-      msgEl.textContent = msgs[lang] || msgs.en;
-      input.style.display = 'none';
-      if (btn) btn.style.display = 'none';
+
+    if (r.ok) {
+      const flexDiv = formEl ? formEl.querySelector('div') : null;
+      if (flexDiv) flexDiv.style.display = 'none';
+      msgEl.style.display = 'block';
+      msgEl.style.color = '#4AC77A';
+      msgEl.innerHTML = `
+        <span class="en">&#10003; You are on the list for <em>${bookTitle||bookKey}</em>. We will notify you on launch day.</span>
+        <span class="fr">&#10003; Vous &ecirc;tes sur la liste pour <em>${bookTitle||bookKey}</em>.</span>
+        <span class="es">&#10003; Est&aacute;s en la lista para <em>${bookTitle||bookKey}</em>.</span>`;
     } else {
+      msgEl.style.display = 'block';
       msgEl.style.color = '#E57373';
-      msgEl.textContent = 'Something went wrong. Please try again.';
-      if (btn) btn.disabled = false;
+      msgEl.textContent = d.error || 'Something went wrong. Please try again.';
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     }
   } catch {
     msgEl.style.display = 'block';
     msgEl.style.color = '#E57373';
-    msgEl.textContent = 'Connection error.';
-    if (btn) btn.disabled = false;
+    msgEl.textContent = 'Connection error. Please try again.';
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
   }
 }
 
