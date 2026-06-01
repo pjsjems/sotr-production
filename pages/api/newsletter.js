@@ -17,15 +17,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, lang = 'en', tags: extraTags = [] } = req.body;
+  const { email, lang = 'en', tags: extraTags = [], bookKey, bookTitle = '', type } = req.body;
 
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Invalid email address' });
   }
 
+  // Save notification request to local store (non-blocking, always runs)
+  const saveLocally = async () => {
+    try {
+      const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      await fetch(`${base}/api/admin/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, lang, bookKey, bookTitle, type: type === 'prelaunch' ? 'notification' : type }),
+      });
+    } catch (e) {
+      console.log('[Newsletter] Local store save failed:', e.message);
+    }
+  };
+
   // If Mailchimp is not yet configured, return success for development
   if (!process.env.MAILCHIMP_API_KEY || !process.env.MAILCHIMP_LIST_ID) {
-    console.log(`[Newsletter] Signup received: ${email} (${lang}) tags:[${[`lang-${lang}`,'website-signup',...extraTags].join(',')}] , Mailchimp not configured yet`);
+    const devTags = [`lang-${lang}`, 'website-signup', ...extraTags];
+    if (type === 'prelaunch' && bookKey) { devTags.push('prelaunch-notification', `book-${bookKey}`); }
+    console.log(`[Newsletter] Signup received: ${email} (${lang}) tags:[${devTags.join(',')}] , Mailchimp not configured yet`);
+    saveLocally();
     return res.status(200).json({ success: true, message: 'Subscribed (dev mode)' });
   }
 
@@ -48,7 +65,7 @@ export default async function handler(req, res) {
           merge_fields: {
             LANGUAGE: lang.toUpperCase(),
           },
-          tags: [`lang-${lang}`, 'website-signup', ...extraTags],
+          tags: (()=>{ const t=[`lang-${lang}`,'website-signup',...extraTags]; if(type==='prelaunch'&&bookKey){t.push('prelaunch-notification',`book-${bookKey}`);}  return t; })(),
         }),
       }
     );
@@ -56,6 +73,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (response.ok || data.title === 'Member Exists') {
+      saveLocally();
       return res.status(200).json({ success: true });
     }
 

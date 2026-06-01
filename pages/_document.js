@@ -4,32 +4,29 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* Google Fonts loaded via next/font/google in _app.js, no blocking link needed */}
-        {/* GA4: loads only when NEXT_PUBLIC_GA_ID is set in .env.local */}
-        {process.env.NEXT_PUBLIC_GA_ID && (
-          <>
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{'analytics_storage':'denied'});window.SOTR_GA_ID='${process.env.NEXT_PUBLIC_GA_ID}';`,
-              }}
-            />
-          </>
-        )}
-        {/* Favicon: SVG (modern) + PNG fallbacks + Apple touch icon */}
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" href="/favicon.ico" sizes="32x32" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/site.webmanifest" />
-        {/* Open Graph defaults: updated per-page via next/head */}
+        {/* UTF-8 charset — MUST be first in head */}
+        <meta charSet="utf-8" />
+        {/* Google Fonts */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Source+Sans+3:wght@300;400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300;1,8..60,400&display=swap"
+          rel="stylesheet"
+        />
+        <link rel="icon" href="/favicon.ico" />
         <meta property="og:site_name" content="SPY ON THE RISE" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
-      <body>
+      <body data-lang="en">
         <Main />
         <NextScript />
+        {/* Language persistence: restore saved language on hydration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var l=localStorage.getItem('sotr-lang');if(l&&['en','fr','es'].includes(l)){document.body.setAttribute('data-lang',l);}}catch(e){}})();`
+          }}
+        />
       </body>
     </Html>
   );

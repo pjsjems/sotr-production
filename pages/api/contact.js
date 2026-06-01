@@ -1,33 +1,38 @@
-// ════════════════════════════════════════════════
-// Contact Form API
-// POST /api/contact
-// Body: { name, email, subject, message, type }
-//
-// SETUP:
-//   Add to .env.local:
-//     CONTACT_EMAIL=contact@spyontherise.com
-//     (Uses Vercel's built-in email when deployed)
-// ════════════════════════════════════════════════
+// pages/api/contact.js — saves messages to data/messages.json
+import fs from 'fs';
+import path from 'path';
+
+const MESSAGES_PATH = path.join(process.cwd(), 'data', 'messages.json');
+
+function saveMessage(msg) {
+  let msgs = [];
+  if (fs.existsSync(MESSAGES_PATH)) {
+    try { msgs = JSON.parse(fs.readFileSync(MESSAGES_PATH, 'utf8')); } catch {}
+  }
+  msgs.unshift(msg);
+  if (msgs.length > 200) msgs.splice(200);
+  fs.writeFileSync(MESSAGES_PATH, JSON.stringify(msgs, null, 2), 'utf8');
+}
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { name, email, subject, message, type = 'general' } = req.body;
+  if (!name || !email || !message) return res.status(400).json({ error: 'Missing required fields' });
 
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    saveMessage({
+      id: Date.now().toString(),
+      name, email,
+      subject: subject || '',
+      message, type,
+      date: new Date().toISOString(),
+      read: false,
+    });
+    console.log('[Contact] Saved:', { name, email, subject, type });
+    return res.status(200).json({ success: true });
+  } catch (e) {
+    console.error('[Contact] Error:', e.message);
+    return res.status(500).json({ error: 'Failed to save message' });
   }
-
-  // Log the contact request (for development)
-  console.log('[Contact]', { name, email, subject, type, messageLength: message.length });
-
-  // In production, this would send an email via:
-  // - Resend (resend.com): recommended, free tier 3000/month
-  // - SendGrid
-  // - Nodemailer with SMTP
-  // Claude will configure this during deployment (Step 7)
-
-  return res.status(200).json({ success: true });
 }
