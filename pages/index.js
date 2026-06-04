@@ -2,8 +2,25 @@ import { useEffect } from 'react';
 import Head from 'next/head';
 import Script from 'next/script';
 
+const COMING_SOON_MODE = true; // Change to false to launch the site
+const BYPASS_KEY = 'sotr2026';
+
 export default function Home() {
   useEffect(() => {
+    // Coming soon bypass check
+    const urlParams = new URLSearchParams(window.location.search);
+    const bypass = urlParams.get('preview') === BYPASS_KEY;
+    if (bypass) {
+      localStorage.setItem('sotr-preview-bypass', BYPASS_KEY);
+    }
+    const hasbypass = localStorage.getItem('sotr-preview-bypass') === BYPASS_KEY;
+    if (COMING_SOON_MODE && !hasbypass) {
+      document.getElementById('coming-soon-overlay').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      document.body.style.pointerEvents = 'none';
+      document.getElementById('coming-soon-overlay').style.pointerEvents = 'all';
+    }
+
     // ── FIX: Set data-lang on the real <body> element ──────────────────
     // Next.js renders SITE_HTML inside a <div>, so the data-lang="en"
     // inside the HTML string never reaches document.body.
@@ -34,6 +51,43 @@ export default function Home() {
 
   return (
     <>
+      {COMING_SOON_MODE && (
+        <div id="coming-soon-overlay" style={{
+          display:'none',
+          position:'fixed', inset:0, zIndex:99999,
+          background:'#16110C',
+          flexDirection:'column',
+          alignItems:'center', justifyContent:'center',
+          textAlign:'center', padding:'2rem',
+        }}>
+          <div style={{color:'#7A1515',fontSize:'28px',marginBottom:'1rem',
+            letterSpacing:'.2em'}}>◆</div>
+          <div style={{fontFamily:'Georgia,serif',fontSize:'clamp(28px,5vw,52px)',
+            fontWeight:700,color:'#F0EDE8',lineHeight:1.2,marginBottom:'1rem'}}>
+            SPY ON THE RISE
+          </div>
+          <div style={{fontFamily:'Georgia,serif',fontSize:'clamp(14px,2vw,20px)',
+            fontStyle:'italic',color:'#B8B0A5',marginBottom:'2.5rem'}}>
+            Where Ideas Rise. Where Voices Ascend.
+          </div>
+          <div style={{width:48,height:2,background:'#7A1515',marginBottom:'2.5rem'}}/>
+          <div style={{fontFamily:'Arial,sans-serif',fontSize:'clamp(13px,1.8vw,17px)',
+            fontWeight:600,letterSpacing:'.18em',textTransform:'uppercase',
+            color:'#7A1515',marginBottom:'1rem'}}>
+            Launching Soon
+          </div>
+          <div style={{fontFamily:'Georgia,serif',fontSize:'clamp(13px,1.6vw,16px)',
+            color:'#6B6560',maxWidth:420,lineHeight:1.8}}>
+            Our full catalog of geopolitical essays, espionage thrillers,
+            speculative fiction, and bilingual poetry is almost ready.
+          </div>
+          <div style={{marginTop:'3rem',fontFamily:'Arial,sans-serif',
+            fontSize:'12px',letterSpacing:'.12em',textTransform:'uppercase',
+            color:'#3D3328'}}>
+            spyontherise.com
+          </div>
+        </div>
+      )}
       <Head>
         <meta charSet="utf-8" />
         <title>SPY ON THE RISE — Independent Publishing House</title>
