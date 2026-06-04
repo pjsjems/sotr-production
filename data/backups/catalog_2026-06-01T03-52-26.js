@@ -32,7 +32,7 @@ const BOOKS = {
   mercer2:  { key:'mercer2',  color:'#1C2B4A', orn:'◆', genre:'Spy Thriller',
     title:'The Mercer Files: The Prague Protocol', subtitle:'The Prague Protocol',
     lang:'EN / FR', pages:'~360p', series:'The Mercer Files',
-    seriesKey:'mercer', vol:'Vol. 2', available:true, price:'From $15.99',
+    seriesKey:'mercer', vol:'Vol. 2', available:false, price:'From $15.99',
     synopsis:'Book 2 moves the series into the institutional corridors of Central European intelligence. The Prague Protocol maps the organizational architecture of betrayal: how loyalty is manufactured, tested, and systematically destroyed within intelligence structures that cannot admit the nature of what they ask of their operatives.',
     links:{print:{amazon:'#',ingram:'#',bn:'#',bookbaby:'#'},ebook:{kindle:'#',apple:'#',kobo:'#',google:'#',nook:'#'},audio:{audible:'#',apple_audio:'#'}},
     details:[['Genre','Spy Thriller · Fiction'],['Series','The Mercer Files · Book 2'],['Subtitle','The Prague Protocol'],['Language','English & French'],['Pages','~360'],['Format','Print · eBook'],['Publisher','SPY ON THE RISE']] },
