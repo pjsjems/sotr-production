@@ -520,6 +520,112 @@ function MessagesBoard({ toast, setUnreadCount }) {
   );
 }
 
+// ── Site Lock Panel ────────────────────────────────────────
+function SiteLockPanel({ siteLocked, setSiteLocked, toast }) {
+  const [toggling, setToggling] = useState(false);
+
+  async function toggleLock() {
+    setToggling(true);
+    try {
+      const r = await fetch('/api/admin/sitelock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: !siteLocked }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setSiteLocked(d.locked);
+        toast(
+          d.locked
+            ? 'Website locked — visitors see the Coming Soon screen'
+            : 'Website unlocked — full site is visible to all visitors',
+          d.locked ? 'warning' : 'success'
+        );
+      } else {
+        toast(d.error || 'Failed to change lock status', 'error');
+      }
+    } catch {
+      toast('Connection error', 'error');
+    }
+    setToggling(false);
+  }
+
+  const isLocked = siteLocked === true;
+
+  return (
+    <div>
+      <div className="panel" style={{ marginBottom:'1.25rem' }}>
+        <div className="panel-head"><span className="panel-title">Website Status</span></div>
+        <div className="panel-body">
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
+              <div style={{
+                width:56, height:56, borderRadius:'50%',
+                background: isLocked ? 'var(--amberbg)' : 'var(--greenbg)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:24, flexShrink:0,
+              }}>
+                {isLocked ? '🔒' : '🌐'}
+              </div>
+              <div>
+                <div style={{ fontSize:18, fontWeight:700, color: isLocked ? 'var(--amberb)' : 'var(--greenb)', marginBottom:4 }}>
+                  {siteLocked === null ? 'Loading…' : isLocked ? 'Site Locked' : 'Site Live'}
+                </div>
+                <div style={{ fontSize:13, color:'var(--tx2)' }}>
+                  {isLocked
+                    ? 'Visitors see the Coming Soon screen. The site is not accessible.'
+                    : 'The full site is visible to all visitors at spyontherise.com.'}
+                </div>
+              </div>
+            </div>
+            <button
+              className={`btn ${isLocked ? 'btn-g' : 'btn-warn'}`}
+              style={{ minWidth:160, justifyContent:'center', padding:'.7rem 1.5rem', fontSize:14 }}
+              onClick={toggleLock}
+              disabled={toggling || siteLocked === null}>
+              {toggling
+                ? <><span className="spinner"/> Updating…</>
+                : isLocked ? '🌐 Unlock — Go Live' : '🔒 Lock — Coming Soon'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="two-col">
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title" style={{ color:'var(--amberb)' }}>🔒 When Locked</span></div>
+          <div className="panel-body" style={{ fontSize:13, color:'var(--tx2)', lineHeight:1.9 }}>
+            Visitors to spyontherise.com see a branded Coming Soon screen with no
+            access to the catalog, books, or any site content.<br/><br/>
+            <strong style={{ color:'var(--tx)' }}>Full site still accessible via:</strong><br/>
+            sotr-production.vercel.app — always open<br/>
+            spyontherise.com/?preview=sotr2026 — bypass on main domain<br/>
+            localhost:3000 — always open in development
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title" style={{ color:'var(--greenb)' }}>🌐 When Live</span></div>
+          <div className="panel-body" style={{ fontSize:13, color:'var(--tx2)', lineHeight:1.9 }}>
+            All visitors see the full site with the complete catalog,
+            book cards, series pages, bundles, and all features.<br/><br/>
+            <strong style={{ color:'var(--tx)' }}>The admin dashboard is always accessible</strong>
+            {' '}regardless of lock status — the lock only affects public pages.
+          </div>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head"><span className="panel-title">Quick Access</span></div>
+        <div className="panel-body" style={{ display:'flex', gap:'.75rem', flexWrap:'wrap' }}>
+          <a href="https://spyontherise.com" target="_blank" rel="noopener" className="btn btn-s">🌐 spyontherise.com</a>
+          <a href="https://spyontherise.com/?preview=sotr2026" target="_blank" rel="noopener" className="btn btn-s">👁 Preview bypass</a>
+          <a href="https://sotr-production.vercel.app" target="_blank" rel="noopener" className="btn btn-s">▲ Vercel preview URL</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [auth, setAuth] = useState(null); // null=checking, false=login, true=dashboard
   const [password, setPassword] = useState('');
@@ -547,6 +653,7 @@ export default function AdminDashboard() {
   const [addForm, setAddForm] = useState({});
   const [addSaving, setAddSaving] = useState(false);
   const [autoKey, setAutoKey] = useState('');
+  const [siteLocked, setSiteLocked] = useState(null);
 
   // ── Auth check ──────────────────────────────────────────
   useEffect(() => {
@@ -564,6 +671,10 @@ export default function AdminDashboard() {
       if (!r.ok) { setAuth(false); return; }
       const d = await r.json();
       setData(d);
+      fetch('/api/admin/sitelock')
+        .then(r => r.json())
+        .then(d => setSiteLocked(d.locked))
+        .catch(() => setSiteLocked(false));
     } catch (e) {
       toast('Failed to load catalog data', 'error');
     } finally {
@@ -645,7 +756,7 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
-        toast(`${key} → ${currentState ? 'locked' : 'unlocked'}`, 'success');
+        toast(`${key} → ${currentState ? 'locked' : 'unlocked'} — live in ~10s`, 'success');
         await loadCatalog();
       } else toast(d.error, 'error');
     } catch { toast('Failed to toggle availability', 'error'); }
@@ -663,7 +774,7 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
-        toast('Book updated successfully', 'success');
+        toast('Book updated — live in ~10s', 'success');
         setEditBook(null);
         await loadCatalog();
       } else toast(d.error, 'error');
@@ -683,7 +794,7 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
-        toast('Synopsis saved in all languages', 'success');
+        toast('Synopsis saved — live in ~10s', 'success');
         setSynopsisBook(null);
         await loadCatalog();
       } else toast(d.error, 'error');
@@ -1167,6 +1278,7 @@ export default function AdminDashboard() {
   }
 
   const sections = {
+    sitelock: { label:'Site Lock', icon:'🔒', render: () => <SiteLockPanel siteLocked={siteLocked} setSiteLocked={setSiteLocked} toast={toast} /> },
     dashboard: { label:'Dashboard', icon:'⬡', render: renderDashboard },
     catalog: { label:'Catalog', icon:'📚', render: renderCatalog },
     availability: { label:'Availability', icon:'🔓', render: renderAvailability },
@@ -1201,6 +1313,7 @@ export default function AdminDashboard() {
                 onClick={() => setActiveSection(key)}>
                 <span className="sb-icon">{s.icon}</span>
                 {s.label}
+                {key === 'sitelock' && siteLocked === true && <span className="sb-badge" style={{background:'#D4A820',color:'#000'}}>LOCKED</span>}
                 {key === 'availability' && data && <span className="sb-badge">{data.books.filter(b=>!b.available).length}</span>}
                 {key === 'messages' && unreadCount > 0 && <span className="sb-badge">{unreadCount}</span>}
               </button>

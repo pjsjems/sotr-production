@@ -33,3 +33,6 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 .vs/
+
+# Catalog backups — large, auto-generated, not needed in repo
+data/backups/
