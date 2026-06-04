@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import Head from 'next/head';
 import '../styles/globals.css';
 import { Playfair_Display, Source_Sans_3, Source_Serif_4 } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -68,6 +69,7 @@ export default function App({ Component, pageProps }) {
           <Component {...pageProps} lang={lang} setLang={handleSetLang} />
         </LangContext.Provider>
       </div>
+      <Analytics />
     </>
   );
 }
