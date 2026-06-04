@@ -2,23 +2,38 @@ import { useEffect } from 'react';
 import Head from 'next/head';
 import Script from 'next/script';
 
-const COMING_SOON_MODE = true; // Change to false to launch the site
-const BYPASS_KEY = 'sotr2026';
+const COMING_SOON_MODE = true; // Set to false when ready to launch publicly
 
 export default function Home() {
   useEffect(() => {
-    // Coming soon bypass check
-    const urlParams = new URLSearchParams(window.location.search);
-    const bypass = urlParams.get('preview') === BYPASS_KEY;
-    if (bypass) {
-      localStorage.setItem('sotr-preview-bypass', BYPASS_KEY);
-    }
-    const hasbypass = localStorage.getItem('sotr-preview-bypass') === BYPASS_KEY;
-    if (COMING_SOON_MODE && !hasbypass) {
-      document.getElementById('coming-soon-overlay').style.display = 'flex';
-      document.body.style.overflow = 'hidden';
-      document.body.style.pointerEvents = 'none';
-      document.getElementById('coming-soon-overlay').style.pointerEvents = 'all';
+    // Domain-based lock: show coming soon on public domain, allow full
+    // access on vercel.app preview URL
+    if (COMING_SOON_MODE) {
+      const host = window.location.hostname;
+      const isPublicDomain =
+        host === 'spyontherise.com' ||
+        host === 'www.spyontherise.com';
+      const isPreviewUrl =
+        host.includes('vercel.app') ||
+        host === 'localhost' ||
+        host === '127.0.0.1';
+      const hasAdminBypass =
+        new URLSearchParams(window.location.search).get('preview') === 'sotr2026' ||
+        localStorage.getItem('sotr-preview') === 'sotr2026';
+
+      if (new URLSearchParams(window.location.search).get('preview') === 'sotr2026') {
+        localStorage.setItem('sotr-preview', 'sotr2026');
+      }
+
+      if (isPublicDomain && !hasAdminBypass) {
+        const el = document.getElementById('coming-soon-overlay');
+        if (el) {
+          el.style.display = 'flex';
+          document.body.style.overflow = 'hidden';
+          document.body.style.pointerEvents = 'none';
+          el.style.pointerEvents = 'all';
+        }
+      }
     }
 
     // ── FIX: Set data-lang on the real <body> element ──────────────────
