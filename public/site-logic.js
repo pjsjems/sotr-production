@@ -17,7 +17,15 @@ async function loadCatalog() {
     const r = await fetch('/api/catalog-live');
     if (!r.ok) throw new Error('catalog fetch failed');
     const data = await r.json();
-    BOOKS     = data.BOOKS     || {};
+
+    // Filter out hidden books for public display
+    const allBooks = data.BOOKS || {};
+    const visibleBooks = {};
+    Object.entries(allBooks).forEach(([k, b]) => {
+      if (!b.hidden) visibleBooks[k] = b;
+    });
+
+    BOOKS     = visibleBooks;
     SERIES    = data.SERIES    || {};
     BUNDLES   = data.BUNDLES   || [];
     PLATFORMS = data.PLATFORMS || {};

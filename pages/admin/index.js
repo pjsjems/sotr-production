@@ -654,6 +654,7 @@ export default function AdminDashboard() {
   const [addSaving, setAddSaving] = useState(false);
   const [autoKey, setAutoKey] = useState('');
   const [siteLocked, setSiteLocked] = useState(null);
+  const [lockToggling, setLockToggling] = useState(false);
 
   // ── Auth check ──────────────────────────────────────────
   useEffect(() => {
@@ -671,10 +672,7 @@ export default function AdminDashboard() {
       if (!r.ok) { setAuth(false); return; }
       const d = await r.json();
       setData(d);
-      fetch('/api/admin/sitelock')
-        .then(r => r.json())
-        .then(d => setSiteLocked(d.locked))
-        .catch(() => setSiteLocked(false));
+      if (typeof d.siteLocked === 'boolean') setSiteLocked(d.siteLocked);
     } catch (e) {
       toast('Failed to load catalog data', 'error');
     } finally {
@@ -1100,6 +1098,7 @@ export default function AdminDashboard() {
                         {b.available ? '✓ Live' : '🔒 Locked'}
                       </span>
                     </button>
+                    {b.hidden && <span className="badge" style={{background:'rgba(139,26,26,.15)',color:'var(--redb)',marginLeft:4}}>Hidden</span>}
                   </td>
                   <td style={{ fontSize:12, color:'var(--tx3)' }}>{b.price}</td>
                   <td>
@@ -1111,6 +1110,25 @@ export default function AdminDashboard() {
                       <button className="btn btn-s btn-sm btn-icon" title="Edit synopses"
                         onClick={() => { setSynopsisBook(b); setSynopsisForm({ en:b.synopsis_en||b.synopsis||'', fr:b.synopsis_fr||'', es:b.synopsis_es||'', urls:b.retailerUrls||{} }); setActiveTab('en'); }}>
                         📝
+                      </button>
+                      <button className="btn btn-s btn-sm btn-icon"
+                        title={b.hidden ? 'Show on public site' : 'Hide from public site'}
+                        style={{ opacity: b.hidden ? 1 : 0.7 }}
+                        onClick={async () => {
+                          try {
+                            const r = await fetch('/api/admin/book', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'hide', key: b.key }),
+                            });
+                            const d = await r.json();
+                            if (d.success) {
+                              toast(`${b.key}: ${d.hidden ? 'hidden from public' : 'visible to public'}`, 'success');
+                              await loadCatalog();
+                            } else toast(d.error, 'error');
+                          } catch { toast('Failed', 'error'); }
+                        }}>
+                        {b.hidden ? '👁' : '🙈'}
                       </button>
                     </div>
                   </td>
@@ -1341,13 +1359,40 @@ export default function AdminDashboard() {
           <header className="topbar">
             <div>
               <div className="tb-title">{currentSection.icon} {currentSection.label}</div>
-              {data && <div className="tb-sub">SPY ON THE RISE · {data.stats.totalTitles} titles · {data.stats.availableTitles} live</div>}
+              {data && <div className="tb-sub">SPY ON THE RISE · {data.stats.totalTitles} titles · {data.stats.availableTitles} live{data.stats.hiddenTitles > 0 ? ` · ${data.stats.hiddenTitles} hidden` : ''}</div>}
             </div>
             <div className="tb-actions">
               <button className="btn btn-s btn-sm" onClick={loadCatalog} disabled={loading}>
                 {loading ? <span className="spinner" /> : '↻ Refresh'}
               </button>
-              <a href="/" target="_blank" rel="noopener" className="btn btn-s btn-sm">View Site →</a>
+              <a href="/" target="_blank" rel="noopener" className="btn btn-s btn-sm">
+                🌐 View Site
+              </a>
+              <button
+                className={`btn btn-sm ${siteLocked ? 'btn-g' : 'btn-warn'}`}
+                style={{ minWidth: 130 }}
+                disabled={lockToggling || siteLocked === null}
+                onClick={async () => {
+                  setLockToggling(true);
+                  try {
+                    const r = await fetch('/api/admin/sitelock', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ locked: !siteLocked }),
+                    });
+                    const d = await r.json();
+                    if (d.success) {
+                      setSiteLocked(d.locked);
+                      toast(d.locked ? '🔒 Site locked — Coming Soon visible' : '🌐 Site unlocked — fully live', d.locked ? 'warning' : 'success');
+                    }
+                  } catch { toast('Lock toggle failed', 'error'); }
+                  setLockToggling(false);
+                }}>
+                {lockToggling
+                  ? <><span className="spinner" /> Updating...</>
+                  : siteLocked === null ? '...'
+                  : siteLocked ? '🌐 Unlock Site' : '🔒 Lock Site'}
+              </button>
               <PublishButton addToast={toast} />
             </div>
           </header>

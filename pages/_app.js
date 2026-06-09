@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import Head from 'next/head';
 import '../styles/globals.css';
+import '../styles/textes.css';
 import { Playfair_Display, Source_Sans_3, Source_Serif_4 } from 'next/font/google';
 
 const playfair = Playfair_Display({
