@@ -43,6 +43,23 @@ export default function Home() {
     const saved = localStorage.getItem('sotr-lang') || 'en';
     document.body.setAttribute('data-lang', saved);
 
+    // ── TOM banner renderer — shared by initial load and lang switch ──
+    function renderTomBanner(featured, lang) {
+      const el = document.getElementById('text-of-month-block');
+      if (!el || !featured) return;
+      const title = featured[`title_${lang}`] || featured.title_en || '';
+      const sub   = featured[`subtitle_${lang}`] || featured.subtitle_en || '';
+      const label = lang === 'fr' ? 'Texte du mois' : lang === 'es' ? 'Texto del mes' : 'Text of the Month';
+      el.innerHTML = `
+        <div class="tom-label">${label}</div>
+        <div class="tom-title">${title}</div>
+        ${sub ? `<div class="tom-sub">${sub}</div>` : ''}
+        <a href="/textes" class="tom-link en">Read the text →</a>
+        <a href="/textes" class="tom-link fr">Lire le texte →</a>
+        <a href="/textes" class="tom-link es">Leer el texto →</a>`;
+      el.style.display = 'block';
+    }
+
     // ── FIX: Patch setLang to update real body + persist choice ────────
     window.__sotrSetLang = function(l) {
       document.body.setAttribute('data-lang', l);
@@ -53,6 +70,7 @@ export default function Home() {
         const btns = document.querySelectorAll('.lang-btn');
         if (btns[idx]) btns[idx].classList.add('active');
       }
+      if (window.__sotrFeaturedText) renderTomBanner(window.__sotrFeaturedText, l);
     };
 
     // Sync active lang button to saved language
@@ -69,20 +87,8 @@ export default function Home() {
       .then(texts => {
         const featured = texts.find(t => t.featured);
         if (!featured) return;
-        const el = document.getElementById('text-of-month-block');
-        if (!el) return;
-        const lang = document.body.getAttribute('data-lang') || 'en';
-        const title = featured[`title_${lang}`] || featured.title_en || '';
-        const sub   = featured[`subtitle_${lang}`] || featured.subtitle_en || '';
-        const sectionLabel = lang === 'fr' ? 'Texte du mois' : lang === 'es' ? 'Texto del mes' : 'Text of the Month';
-        el.innerHTML = `
-          <div class="tom-label">${sectionLabel}</div>
-          <div class="tom-title">${title}</div>
-          ${sub ? `<div class="tom-sub">${sub}</div>` : ''}
-          <a href="/textes" class="tom-link en">Read the text →</a>
-          <a href="/textes" class="tom-link fr">Lire le texte →</a>
-          <a href="/textes" class="tom-link es">Leer el texto →</a>`;
-        el.style.display = 'block';
+        window.__sotrFeaturedText = featured;
+        renderTomBanner(featured, document.body.getAttribute('data-lang') || 'en');
       })
       .catch(() => {});
   }, []);
