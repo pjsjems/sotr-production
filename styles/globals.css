@@ -592,7 +592,7 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
 }
 .modal-header {
   background: var(--bg-dark); padding: 2rem;
-  display: grid; grid-template-columns: 106px 1fr; gap: 1.5rem;
+  display: grid; grid-template-columns: 106px minmax(0,1fr); gap: 1.5rem;
   border-radius: var(--r) var(--r) 0 0; position: relative;
 }
 .modal-cover-box { width: 106px; aspect-ratio: 2/3; border-radius: var(--r-sm); overflow: hidden; position: relative; flex-shrink: 0; }
@@ -732,6 +732,10 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
 @media(max-width:600px){
   .fg-grid { grid-template-columns: 1fr; }
   .nl-inner { flex-direction: column; align-items: flex-start; }
-  .modal-header { grid-template-columns: 1fr; }
   .synopsis-details { grid-template-columns: 1fr; }
+}
+@media(max-width:500px){
+  .modal-cover-box { width: 72px; }
+  .modal-header { padding: 1.25rem; gap: 1rem; }
+  .mh-title { font-size: 1.15rem; }
 }
