@@ -67,7 +67,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "hidden": true
     },
     "mercer2": {
       "key": "mercer2",
@@ -504,7 +505,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/anatomy1.jpg"
     },
     "anatomy2": {
       "key": "anatomy2",
@@ -572,7 +574,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/anatomy2.jpg"
     },
     "anatomy3": {
       "key": "anatomy3",
@@ -640,7 +643,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/anatomy3.jpg"
     },
     "anatomy4": {
       "key": "anatomy4",
@@ -704,7 +708,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/anatomy4.jpg"
     },
     "anatomy5": {
       "key": "anatomy5",
@@ -764,7 +769,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/anatomy5.jpg"
     },
     "anatomy6": {
       "key": "anatomy6",
@@ -825,7 +831,8 @@
       ],
       "synopsis_en": "Every social group is playing a game. The players rarely know the rules — and that ignorance is not accidental. The Game of Us is the sixth volume of the Anatomy of Micro-Societies series and its most game-theoretically precise: an 87,000-word investigation into the hidden competitive logics that govern behavior in the micro-societies we inhabit most intimately: friendships, couples, families, professional teams, and the informal power structures that cut across all of them. Across its chapters, the book maps eighteen iron laws — each one derived from direct field observation, each one sealing an original sociological concept developed by the author — that describe how the game is structured, who benefits from its concealment, and what happens in the rare moments when its rules are finally made legible. The concept definitions are precise. The analysis is cold. The irony is earned. The reader finishes this volume with the unsettling recognition that the games described have been running in their own life all along, and the sharper recognition that naming them changes nothing — except everything about how one chooses to play.",
       "synopsis_fr": "Chaque groupe social joue une partie. Les joueurs en connaissent rarement les règles — et cette ignorance n'est pas accidentelle. Le Jeu de nous est le sixième volume de la série Anatomie des Micro-Sociétés et le plus précis sur le plan de la théorie des jeux : une enquête de 87 000 mots sur les logiques compétitives dissimulées qui gouvernent le comportement dans les micro-sociétés que nous habitons le plus intimement : les amitiés, les couples, les familles, les équipes professionnelles et les structures de pouvoir informelles qui les traversent toutes. Au fil de ses chapitres, le livre cartographie dix-huit lois d'airain — chacune issue d'une observation directe sur le terrain, chacune scellant un concept sociologique original développé par l'auteur — qui décrivent comment la partie est structurée, qui bénéficie de sa dissimulation, et ce qui se produit dans les rares moments où ses règles deviennent enfin lisibles. Les définitions conceptuelles sont précises. L'analyse est froide. L'ironie est méritée. Le lecteur referme ce volume avec la reconnaissance troublante que les parties décrites se jouaient dans sa propre vie depuis toujours — et la reconnaissance plus aiguë que les nommer ne change rien, sauf tout ce qui touche à la façon dont on choisit de jouer.",
-      "synopsis_es": "Todo grupo social está jugando una partida. Los jugadores raramente conocen las reglas, y esa ignorancia no es accidental. El Juego de Nosotros es el sexto volumen de la serie Anatomía de las Micro-Sociedades y el más preciso en términos de teoría de juegos: una investigación de 87.000 palabras sobre las lógicas competitivas ocultas que rigen el comportamiento en las micro-sociedades que habitamos de manera más íntima: amistades, parejas, familias, equipos profesionales y las estructuras de poder informales que los atraviesan a todos. A lo largo de sus capítulos, el libro cartografía dieciocho leyes de hierro, cada una derivada de la observación directa en campo, cada una sellando un concepto sociológico original desarrollado por el autor, que describen cómo está estructurada la partida, quién se beneficia de su ocultamiento y qué ocurre en los escasos momentos en que sus reglas finalmente se vuelven legibles. Las definiciones conceptuales son precisas. El análisis es frío. La ironía está ganada. El lector cierra este volumen con el reconocimiento perturbador de que las partidas descritas llevan corriendo en su propia vida desde siempre, y con el reconocimiento más agudo de que nombrarlas no cambia nada, salvo todo lo que tiene que ver con cómo uno elige jugar."
+      "synopsis_es": "Todo grupo social está jugando una partida. Los jugadores raramente conocen las reglas, y esa ignorancia no es accidental. El Juego de Nosotros es el sexto volumen de la serie Anatomía de las Micro-Sociedades y el más preciso en términos de teoría de juegos: una investigación de 87.000 palabras sobre las lógicas competitivas ocultas que rigen el comportamiento en las micro-sociedades que habitamos de manera más íntima: amistades, parejas, familias, equipos profesionales y las estructuras de poder informales que los atraviesan a todos. A lo largo de sus capítulos, el libro cartografía dieciocho leyes de hierro, cada una derivada de la observación directa en campo, cada una sellando un concepto sociológico original desarrollado por el autor, que describen cómo está estructurada la partida, quién se beneficia de su ocultamiento y qué ocurre en los escasos momentos en que sus reglas finalmente se vuelven legibles. Las definiciones conceptuales son precisas. El análisis es frío. La ironía está ganada. El lector cierra este volumen con el reconocimiento perturbador de que las partidas descritas llevan corriendo en su propia vida desde siempre, y con el reconocimiento más agudo de que nombrarlas no cambia nada, salvo todo lo que tiene que ver con cómo uno elige jugar.",
+      "image": "/covers/anatomy6.jpg"
     },
     "anatomy7": {
       "key": "anatomy7",
@@ -882,7 +889,8 @@
       ],
       "synopsis_en": "Power rarely announces itself. It operates through systems — through the invisible architecture of norms, repetition, and calibrated permission that shapes what people believe they are allowed to want. Influence, Systems, and the Human Experience is the seventh volume of the Anatomy of Micro-Societies series, and its most architecturally ambitious: a sixteen-chapter investigation into the machinery of influence as it operates not at the level of spectacle but at the level of habit, assumption, and the barely audible pressure that most people experience as simply the way things are. Drawing on field observation across professional environments, social networks, and institutional structures, the book identifies the micro-mechanisms through which influence colonizes behavior — and the equally precise conditions under which those mechanisms break down. The writing is cold where the subject demands clarity and ironic where it earns the right to be. The series' governing analytical method — sensory observation converted into original sociological concept, sealed by an iron law — reaches its most complex application here, in the territory where individual psychology and collective architecture are most difficult to separate.",
       "synopsis_fr": "Le pouvoir s'annonce rarement. Il opère par les systèmes — par l'architecture invisible des normes, de la répétition et de la permission calibrée qui façonne ce que les gens croient avoir le droit de désirer. Influence, Systèmes et Expérience humaine est le septième volume de la série Anatomie des Micro-Sociétés, et le plus ambitieux sur le plan architectural : une investigation en seize chapitres sur la mécanique de l'influence telle qu'elle opère non au niveau du spectacle, mais au niveau de l'habitude, de la présupposition et de la pression à peine audible que la plupart des gens vivent simplement comme l'ordre normal des choses. S'appuyant sur l'observation directe dans des environnements professionnels, des réseaux sociaux et des structures institutionnelles, le livre identifie les micro-mécanismes par lesquels l'influence colonise le comportement, ainsi que les conditions tout aussi précises dans lesquelles ces mécanismes s'effondrent. L'écriture est froide là où le sujet exige la clarté, et ironique là où elle en a le droit. La méthode analytique directrice de la série — observation sensorielle convertie en concept sociologique original, scellée par une loi d'airain — atteint ici son application la plus complexe, dans le territoire où la psychologie individuelle et l'architecture collective sont les plus difficiles à séparer.",
-      "synopsis_es": "El poder raramente se anuncia. Opera a través de sistemas, a través de la arquitectura invisible de las normas, la repetición y el permiso calibrado que moldea lo que las personas creen tener derecho a desear. Influencia, Sistemas y la Experiencia Humana es el séptimo volumen de la serie Anatomía de las Micro-Sociedades, y el más ambicioso en términos arquitectónicos: una investigación de dieciséis capítulos sobre la maquinaria de la influencia tal como opera no en el nivel del espectáculo sino en el de la costumbre, la suposición y la presión apenas audible que la mayoría de las personas experimenta simplemente como el estado natural de las cosas. A partir de la observación de campo en entornos profesionales, redes sociales y estructuras institucionales, el libro identifica los micro-mecanismos por los que la influencia coloniza el comportamiento, así como las condiciones igualmente precisas en las que esos mecanismos se desmoronan. La escritura es fría donde el tema exige claridad e irónica donde se lo gana. El método analítico rector de la serie, la observación sensorial convertida en concepto sociológico original y sellada por una ley de hierro, alcanza aquí su aplicación más compleja, en el territorio donde la psicología individual y la arquitectura colectiva son más difíciles de separar."
+      "synopsis_es": "El poder raramente se anuncia. Opera a través de sistemas, a través de la arquitectura invisible de las normas, la repetición y el permiso calibrado que moldea lo que las personas creen tener derecho a desear. Influencia, Sistemas y la Experiencia Humana es el séptimo volumen de la serie Anatomía de las Micro-Sociedades, y el más ambicioso en términos arquitectónicos: una investigación de dieciséis capítulos sobre la maquinaria de la influencia tal como opera no en el nivel del espectáculo sino en el de la costumbre, la suposición y la presión apenas audible que la mayoría de las personas experimenta simplemente como el estado natural de las cosas. A partir de la observación de campo en entornos profesionales, redes sociales y estructuras institucionales, el libro identifica los micro-mecanismos por los que la influencia coloniza el comportamiento, así como las condiciones igualmente precisas en las que esos mecanismos se desmoronan. La escritura es fría donde el tema exige claridad e irónica donde se lo gana. El método analítico rector de la serie, la observación sensorial convertida en concepto sociológico original y sellada por una ley de hierro, alcanza aquí su aplicación más compleja, en el territorio donde la psicología individual y la arquitectura colectiva son más difíciles de separar.",
+      "image": "/covers/anatomy7.jpg"
     },
     "anatomy8": {
       "key": "anatomy8",
@@ -1012,7 +1020,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/crooked1.jpg"
     },
     "crooked2": {
       "key": "crooked2",
@@ -1311,7 +1320,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/chess.jpg"
     },
     "chokepoints": {
       "key": "chokepoints",
@@ -1372,7 +1382,8 @@
       ],
       "synopsis_en": "The world does not run on ideology. It runs on chokepoints. Every civilization in history has been shaped not by the ideas it professed but by the narrow passages through which its energy, food, data, and manufactured goods were forced to travel — and by the power of whoever controlled those passages. CHOKEPOINTS: The Nerves of the World is the first volume of The Civilization of Flows series, a geopolitical anatomy of the straits, canals, pipelines, undersea cables, and orbital corridors that constitute the actual nervous system of global order. Drawing on field research, chronological analysis updated through 2026, and an original framework for reading physical geography as strategic architecture, the book examines how control of these passages has defined empires, triggered wars, and continues to determine which states can project power and which must negotiate for the right to move. The prose is direct and analytically cold. The maps think. This is not a survey of world geography — it is a diagnosis of the invisible infrastructure that every geopolitical actor, whether they acknowledge it or not, is already fighting over.",
       "synopsis_fr": "Le monde ne fonctionne pas à l'idéologie. Il fonctionne aux points d'étranglement. Toutes les civilisations de l'histoire ont été façonnées non par les idées qu'elles professaient, mais par les passages étroits à travers lesquels leurs énergie, leur nourriture, leurs données et leurs marchandises étaient contraintes de transiter — et par le pouvoir de ceux qui contrôlaient ces passages. CHOKEPOINTS : Les Nerfs du monde est le premier volume de la série La Civilisation des Flux, une anatomie géopolitique des détroits, des canaux, des pipelines, des câbles sous-marins et des corridors orbitaux qui constituent le véritable système nerveux de l'ordre mondial. S'appuyant sur des recherches de terrain, une analyse chronologique mise à jour jusqu'en 2026 et un cadre original pour lire la géographie physique comme une architecture stratégique, le livre examine comment le contrôle de ces passages a défini des empires, déclenché des guerres, et continue de déterminer quels États peuvent projeter leur puissance et lesquels doivent négocier le droit de circuler. La prose est directe et analytiquement froide. Les cartes pensent. Ce n'est pas un panorama de la géographie mondiale : c'est un diagnostic de l'infrastructure invisible pour laquelle tout acteur géopolitique, qu'il l'admette ou non, se bat déjà.",
-      "synopsis_es": "El mundo no funciona con ideología. Funciona con puntos de estrangulamiento. Todas las civilizaciones de la historia han sido moldeadas no por las ideas que profesaban sino por los pasos estrechos a través de los cuales su energía, sus alimentos, sus datos y sus mercancías se veían obligados a circular, y por el poder de quienes controlaban esos pasos. CHOKEPOINTS: Los nervios del mundo es el primer volumen de la serie La Civilización de los Flujos, una anatomía geopolítica de los estrechos, canales, oleoductos, cables submarinos y corredores orbitales que constituyen el verdadero sistema nervioso del orden mundial. Apoyándose en investigación de campo, análisis cronológico actualizado hasta 2026 y un marco original para leer la geografía física como arquitectura estratégica, el libro examina cómo el control de estos pasos ha definido imperios, desencadenado guerras y sigue determinando qué estados pueden proyectar poder y cuáles deben negociar el derecho a moverse. La prosa es directa y analíticamente fría. Los mapas piensan. No es un panorama de geografía mundial: es un diagnóstico de la infraestructura invisible por la que todo actor geopolítico, lo reconozca o no, ya está compitiendo."
+      "synopsis_es": "El mundo no funciona con ideología. Funciona con puntos de estrangulamiento. Todas las civilizaciones de la historia han sido moldeadas no por las ideas que profesaban sino por los pasos estrechos a través de los cuales su energía, sus alimentos, sus datos y sus mercancías se veían obligados a circular, y por el poder de quienes controlaban esos pasos. CHOKEPOINTS: Los nervios del mundo es el primer volumen de la serie La Civilización de los Flujos, una anatomía geopolítica de los estrechos, canales, oleoductos, cables submarinos y corredores orbitales que constituyen el verdadero sistema nervioso del orden mundial. Apoyándose en investigación de campo, análisis cronológico actualizado hasta 2026 y un marco original para leer la geografía física como arquitectura estratégica, el libro examina cómo el control de estos pasos ha definido imperios, desencadenado guerras y sigue determinando qué estados pueden proyectar poder y cuáles deben negociar el derecho a moverse. La prosa es directa y analíticamente fría. Los mapas piensan. No es un panorama de geografía mundial: es un diagnóstico de la infraestructura invisible por la que todo actor geopolítico, lo reconozca o no, ya está compitiendo.",
+      "image": "/covers/chokepoints.jpg"
     },
     "evaporating": {
       "key": "evaporating",
@@ -1490,7 +1501,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/seatrial.jpg"
     },
     "warorbits": {
       "key": "warorbits",
@@ -1555,7 +1567,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/warorbits.jpg"
     },
     "iran": {
       "key": "iran",
@@ -1619,7 +1632,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/iran.jpg"
     },
     "atlas": {
       "key": "atlas",
@@ -1680,7 +1694,8 @@
           "SPY ON THE RISE"
         ]
       ],
-      "release": ""
+      "release": "",
+      "image": "/covers/atlas.jpg"
     },
     "teacher": {
       "key": "teacher",
@@ -1744,7 +1759,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/teacher.jpg"
     },
     "neural": {
       "key": "neural",
@@ -1808,7 +1824,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/neural.jpg"
     },
     "invisible": {
       "key": "invisible",
@@ -1872,7 +1889,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/invisible.png"
     },
     "haiti": {
       "key": "haiti",
@@ -1928,7 +1946,8 @@
           "Publisher",
           "SPY ON THE RISE"
         ]
-      ]
+      ],
+      "image": "/covers/haiti.jpg"
     },
     "neon": {
       "key": "neon",
@@ -3191,7 +3210,7 @@
       "synopsis_en": "Some territories can only be entered after the self has been thoroughly crossed. Atlas of the Unspoken: The Outer Atlas is the second and final volume of a bilingual poetry collection that turns outward from the interior world mapped in Tome I — and into the six regions where the deepest human tests are conducted. Forty-five poems and prose poems move through death and the spiritual frequencies it leaves behind, the invisible architecture of trust between persons who have chosen vulnerability, the ancestral memory encoded in salt and skin and the syllables of languages nearly lost, the multiple selves shed in the continuous act of becoming, time's patient and indifferent erasure, and the silence that arrives after the storm of self-invention and quietly begins to repair. The collection accumulates the way experience does: not by logical sequence but by the weight of what it costs to remain open. It ends not with a conclusion but with a gesture toward the reader, a recognition that what has been read and what has been lived have now entered each other. The atlas folds itself closed. The map becomes the traveler.",
       "synopsis_fr": "Certains territoires ne s'ouvrent qu'après que le moi a été pleinement traversé. Atlas de l'Inexprimé : L'Atlas extérieur est le second et dernier volume d'un recueil de poésie bilingue qui se tourne vers l'extérieur depuis le monde intérieur cartographié au Tome I, et plonge dans les six régions où se jouent les épreuves les plus profondes de l'existence humaine. Quarante-cinq poèmes et poèmes en prose traversent la mort et les fréquences spirituelles qu'elle laisse dans son sillage, l'architecture invisible de la confiance entre des êtres qui ont choisi la vulnérabilité, la mémoire ancestrale encodée dans le sel, la peau et les syllabes de langues presque disparues, les multiples moi que l'on abandonne dans l'acte continu du devenir, l'effacement patient et indifférent du temps, et le silence qui arrive après la tempête de l'invention de soi et commence doucement à réparer. Le recueil s'accumule comme s'accumule l'expérience : non par enchaînement logique, mais par le poids de ce qu'il en coûte de rester ouvert. Il ne se referme pas sur une conclusion, mais sur un geste vers le lecteur, une reconnaissance que ce qui a été lu et ce qui a été vécu se sont maintenant fondus l'un dans l'autre. L'atlas se referme. La carte devient le voyageur.",
       "synopsis_es": "Algunos territorios solo se abren después de que el yo ha sido cruzado por completo. El Atlas de lo No Dicho: El Atlas Exterior es el segundo y último volumen de una colección de poesía bilingüe que gira hacia afuera desde el mundo interior cartografiado en el Tomo I, y se adentra en las seis regiones donde se dirimen las pruebas más profundas de la existencia humana. Cuarenta y cinco poemas y poemas en prosa atraviesan la muerte y las frecuencias espirituales que deja tras de sí, la arquitectura invisible de la confianza entre personas que han elegido la vulnerabilidad, la memoria ancestral codificada en la sal, la piel y las sílabas de lenguas casi perdidas, los múltiples yos que se van desprendiendo en el acto continuo del devenir, el borrado paciente e indiferente del tiempo, y el silencio que llega después de la tormenta de la invención de uno mismo y comienza, calladamente, a sanar. La colección se acumula como se acumula la experiencia: no por secuencia lógica sino por el peso de lo que cuesta permanecer abierto. No termina con una conclusión sino con un gesto hacia el lector, un reconocimiento de que lo que se ha leído y lo que se ha vivido se han fundido el uno en el otro. El atlas se cierra. El mapa se convierte en el viajero.",
-      "image": "",
+      "image": "/covers/atlas-of-the-unspoke.jpg",
       "details": [
         [
           "Genre",

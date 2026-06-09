@@ -739,3 +739,56 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
   .modal-header { padding: 1.25rem; gap: 1rem; }
   .mh-title { font-size: 1.15rem; }
 }
+
+/* ── Text of the Month ─────────────────────────────── */
+.tom-section {
+  background: var(--bg-dark, #16110C);
+  padding: 3.5rem 1.5rem;
+}
+.tom-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+.tom-label {
+  font-family: var(--ui, 'Source Sans 3', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: #7A1515;
+  margin-bottom: .75rem;
+}
+.tom-title {
+  font-family: var(--display, 'Playfair Display', serif);
+  font-size: clamp(22px, 3.5vw, 36px);
+  font-weight: 700;
+  color: #F0EDE8;
+  line-height: 1.2;
+  margin-bottom: .6rem;
+}
+.tom-sub {
+  font-family: var(--body, 'Source Serif 4', serif);
+  font-size: clamp(14px, 1.8vw, 17px);
+  font-style: italic;
+  color: #B8B0A5;
+  margin-bottom: 1.5rem;
+}
+.tom-link {
+  display: inline-block;
+  font-family: var(--ui, sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #C87070;
+  text-decoration: none;
+  border: 1px solid rgba(122,21,21,.4);
+  border-radius: 4px;
+  padding: 8px 20px;
+  transition: background .15s, border-color .15s;
+}
+.tom-link:hover {
+  background: rgba(122,21,21,.15);
+  border-color: #7A1515;
+}

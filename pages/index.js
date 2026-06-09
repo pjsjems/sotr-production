@@ -62,6 +62,29 @@ export default function Home() {
         b.classList.toggle('active', i === idx);
       });
     }, 50);
+
+    // Load featured text for homepage banner
+    fetch('/api/texts')
+      .then(r => r.json())
+      .then(texts => {
+        const featured = texts.find(t => t.featured);
+        if (!featured) return;
+        const el = document.getElementById('text-of-month-block');
+        if (!el) return;
+        const lang = document.body.getAttribute('data-lang') || 'en';
+        const title = featured[`title_${lang}`] || featured.title_en || '';
+        const sub   = featured[`subtitle_${lang}`] || featured.subtitle_en || '';
+        const sectionLabel = lang === 'fr' ? 'Texte du mois' : lang === 'es' ? 'Texto del mes' : 'Text of the Month';
+        el.innerHTML = `
+          <div class="tom-label">${sectionLabel}</div>
+          <div class="tom-title">${title}</div>
+          ${sub ? `<div class="tom-sub">${sub}</div>` : ''}
+          <a href="/textes" class="tom-link en">Read the text →</a>
+          <a href="/textes" class="tom-link fr">Lire le texte →</a>
+          <a href="/textes" class="tom-link es">Leer el texto →</a>`;
+        el.style.display = 'block';
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -208,6 +231,10 @@ const SITE_HTML = `<!-- TOPBAR -->
   <section class="reviews-section"><div class="wrap"><p class="section-label en">Reader Reviews</p><p class="section-label fr">Avis des Lecteurs</p><p class="section-label es">Reseñas de Lectores</p><h2 class="section-title" style="margin-top:0.35rem;margin-bottom:2.5rem;"><span class="en">What <em>Readers</em> Say</span><span class="fr">Ce que disent les <em>Lecteurs</em></span><span class="es">Lo que dicen los <em>Lectores</em></span></h2><div class="reviews-grid"><div class="review-card"><div class="rc-stars">★★★★★</div><p class="rc-text">"The Mercer Files rewired how I think about intelligence fiction. Architecturally serious writing."</p><div class="rc-author">Marcus T. — New York</div><div class="rc-source">Amazon · Verified Purchase</div></div><div class="review-card"><div class="rc-stars">★★★★★</div><p class="rc-text">"Anatomy of Micro-Societies reads like a knife. It dismantled my assumptions about how power moves in closed groups."</p><div class="rc-author">Isabelle R. — Paris</div><div class="rc-source">Goodreads · 5 Stars</div></div><div class="review-card"><div class="rc-stars">★★★★★</div><p class="rc-text">"The French edition of Atlas breathes differently. A rare bilingual literary achievement."</p><div class="rc-author">Claudette M. — Montréal</div><div class="rc-source">Apple Books · Verified</div></div></div></div></section>
   <!-- Platforms -->
   <section class="platforms-strip"><div class="wrap"><div class="platforms-inner"><span class="platforms-label en">Available On</span><span class="platforms-label fr">Disponible Sur</span><span class="platforms-label es">Disponible En</span><span class="platform-chip" onclick="showPage('bundles')">Amazon KDP</span><span class="platform-chip" onclick="showPage('bundles')">Apple Books</span><span class="platform-chip" onclick="showPage('bundles')">Barnes &amp; Noble</span><span class="platform-chip" onclick="showPage('bundles')">Kobo</span><span class="platform-chip" onclick="showPage('bundles')">IngramSpark</span><span class="platform-chip" onclick="showPage('bundles')">BookBaby</span><span class="platform-chip" onclick="showPage('bundles')">Google Play Books</span></div></div></section>
+  <!-- TEXT OF THE MONTH -->
+  <section class="tom-section" id="text-of-month-section">
+    <div class="tom-inner" id="text-of-month-block" style="display:none"></div>
+  </section>
   <!-- Newsletter -->
   <section class="newsletter"><div class="wrap"><div class="nl-inner"><div><h3 class="nl-title en">New Releases. <em>First Access.</em></h3><h3 class="nl-title fr">Nouvelles Sorties. <em>Premier Accès.</em></h3><h3 class="nl-title es">Nuevos Lanzamientos. <em>Primer Acceso.</em></h3><p class="nl-sub en">EN / FR / ES editions · No spam, ever.</p><p class="nl-sub fr">Éditions EN / FR / ES · Aucun spam, jamais.</p><p class="nl-sub es">Ediciones EN / FR / ES · Sin spam, nunca.</p></div><div class="nl-form-wrap"><div class="nl-form"><input type="email" class="nl-input" id="nl-input" placeholder="your@email.com"><button class="nl-submit" onclick="handleNL()"><span class="en">Subscribe</span><span class="fr">S'abonner</span><span class="es">Suscribirse</span></button></div><p id="nl-confirm"><span class="en">✓ You're on the list. Welcome.</span><span class="fr">✓ Vous êtes sur la liste. Bienvenue.</span><span class="es">✓ Estás en la lista. Bienvenido.</span></p></div></div></div></section>
 </div><!-- /home -->

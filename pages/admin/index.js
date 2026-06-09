@@ -309,22 +309,75 @@ function BundleAdmin({ toast, books = [] }) {
 // ── Publish to Live Site ───────────────────────────────────
 function PublishButton({ addToast }) {
   const [publishing, setPublishing] = useState(false);
-  async function publish() {
+  const [showForm, setShowForm] = useState(false);
+  const [commitMsg, setCommitMsg] = useState('');
+  const [msg, setMsg] = useState('');
+  const [showMsg, setShowMsg] = useState(false);
+
+  async function doPublish(mode = 'new') {
     setPublishing(true);
+    setShowForm(false);
     try {
       const r = await fetch('/api/admin/publish', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Admin: catalog and content update via dashboard' }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: commitMsg || 'Admin: content update via dashboard',
+          forceRefresh: mode === 'all',
+        }),
       });
       const d = await r.json();
-      addToast(d.message || (d.success ? 'Published' : d.error || 'Publish failed'), d.success ? 'success' : 'error');
-    } catch (e) { addToast('Publish error: ' + e.message, 'error'); }
+      setMsg(d.message);
+      setShowMsg(true);
+      setTimeout(() => setShowMsg(false), 6000);
+      if (d.success) addToast(d.deployed ? '▲ Published to live site' : '✓ Saved locally', 'success');
+      else addToast(d.message, 'error');
+    } catch {
+      addToast('Publish failed — push manually with git push', 'error');
+    }
     setPublishing(false);
+    setCommitMsg('');
   }
+
   return (
-    <button className="btn btn-p" onClick={publish} disabled={publishing} title="Commit & push to GitHub — Vercel auto-deploys">
-      {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Publish to Live'}
-    </button>
+    <div style={{position:'relative'}}>
+      <button className="btn btn-p" onClick={() => setShowForm(f => !f)} disabled={publishing}
+        title="Commit & push to GitHub — Vercel auto-deploys">
+        {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Publish to Live'}
+      </button>
+      {showForm && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 8px)', right:0,
+          background:'var(--surface)', border:'1px solid var(--border2)',
+          borderRadius:8, padding:'1rem', minWidth:320, zIndex:100,
+          boxShadow:'0 8px 32px rgba(0,0,0,.4)',
+        }}>
+          <div style={{fontSize:12,fontWeight:700,color:'var(--tx2)',marginBottom:'.5rem',letterSpacing:'.06em',textTransform:'uppercase'}}>
+            Publish Changes
+          </div>
+          <div style={{fontSize:12,color:'var(--tx3)',marginBottom:'.75rem',lineHeight:1.5}}>
+            What do you want to push to the live site?
+          </div>
+          <input className="field-input" placeholder="Optional note about what changed"
+            value={commitMsg} onChange={e=>setCommitMsg(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&doPublish('new')}
+            style={{marginBottom:'.75rem',fontSize:12}}/>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            <button className="btn btn-p" onClick={()=>doPublish('new')} style={{justifyContent:'center'}}>
+              ▲ Publish New Changes Only
+            </button>
+            <button className="btn btn-warn" onClick={()=>doPublish('all')} style={{justifyContent:'center'}}>
+              ↻ Refresh All Live Content
+            </button>
+            <button className="btn btn-s" onClick={()=>setShowForm(false)} style={{justifyContent:'center'}}>Cancel</button>
+          </div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginTop:'.6rem',lineHeight:1.5}}>
+            <strong>New Changes:</strong> pushes only what changed since last publish.<br/>
+            <strong>Refresh All:</strong> forces Vercel to redeploy everything (use if public pages look outdated).
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -655,6 +708,12 @@ export default function AdminDashboard() {
   const [autoKey, setAutoKey] = useState('');
   const [siteLocked, setSiteLocked] = useState(null);
   const [lockToggling, setLockToggling] = useState(false);
+  const [texts, setTexts] = useState([]);
+  const [textsLoading, setTextsLoading] = useState(false);
+  const [editText, setEditText] = useState(null);
+  const [textForm, setTextForm] = useState({});
+  const [textSaving, setTextSaving] = useState(false);
+  const [textTab, setTextTab] = useState('en');
 
   // ── Auth check ──────────────────────────────────────────
   useEffect(() => {
@@ -695,6 +754,18 @@ export default function AdminDashboard() {
     if (activeSection !== 'settings' || auth !== true) return;
     fetch('/api/admin/config').then(r=>r.json()).then(d=>setFwdEmail(d.config?.forwardEmail||d.forwardEmail||'')).catch(()=>{});
   }, [activeSection, auth]);
+
+  // Load texts when texts section opens
+  useEffect(() => {
+    if (activeSection === 'texts') {
+      setTextsLoading(true);
+      fetch('/api/admin/texts')
+        .then(r => r.json())
+        .then(d => setTexts(d.texts || []))
+        .catch(() => {})
+        .finally(() => setTextsLoading(false));
+    }
+  }, [activeSection]);
 
   // Auto-generate book key as user types title
   useEffect(() => {
@@ -1295,12 +1366,165 @@ export default function AdminDashboard() {
     );
   }
 
+  function renderTexts() {
+    function openNew() {
+      const id = 'text-' + Date.now();
+      setEditText({});
+      setTextForm({ id, title_en:'', title_fr:'', title_es:'', subtitle_en:'', subtitle_fr:'', subtitle_es:'', preview_en:'', preview_fr:'', preview_es:'', full_en:'', full_fr:'', full_es:'', author:'Jems S. Pompée', publishedAt: new Date().toISOString().slice(0,10), featured: false });
+      setTextTab('en');
+    }
+
+    function openEdit(t) {
+      setEditText(t);
+      setTextForm({...t});
+      setTextTab('en');
+    }
+
+    async function saveText() {
+      if (!textForm.id || !textForm.title_en) { toast('Title (EN) is required','error'); return; }
+      setTextSaving(true);
+      try {
+        const r = await fetch('/api/admin/texts', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'save', text: textForm }),
+        });
+        const d = await r.json();
+        if (d.success) {
+          toast('Text saved','success');
+          setEditText(null);
+          const r2 = await fetch('/api/admin/texts');
+          const d2 = await r2.json();
+          setTexts(d2.texts || []);
+        } else toast(d.error||'Save failed','error');
+      } catch { toast('Error saving text','error'); }
+      setTextSaving(false);
+    }
+
+    async function featureText(id) {
+      try {
+        await fetch('/api/admin/texts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'feature', id }) });
+        const r = await fetch('/api/admin/texts');
+        const d = await r.json();
+        setTexts(d.texts || []);
+        toast('Featured text updated','success');
+      } catch { toast('Error','error'); }
+    }
+
+    async function deleteText(id, title) {
+      if (!confirm(`Delete "${title}"?`)) return;
+      try {
+        await fetch('/api/admin/texts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete', id }) });
+        setTexts(prev => prev.filter(t => t.id !== id));
+        toast('Deleted','success');
+      } catch { toast('Error','error'); }
+    }
+
+    const LANG_LABELS = { en:'🇬🇧 English', fr:'🇫🇷 French', es:'🇪🇸 Spanish' };
+    const FIELDS = {
+      en: [['title_en','Title (EN)'],['subtitle_en','Subtitle (EN)'],['preview_en','Preview — ~25% of text (EN)'],['full_en','Full Text (EN)']],
+      fr: [['title_fr','Titre (FR)'],['subtitle_fr','Sous-titre (FR)'],['preview_fr','Extrait — ~25% du texte (FR)'],['full_fr','Texte complet (FR)']],
+      es: [['title_es','Título (ES)'],['subtitle_es','Subtítulo (ES)'],['preview_es','Extracto — ~25% del texto (ES)'],['full_es','Texto completo (ES)']],
+    };
+
+    return (
+      <div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+          <span style={{fontSize:13,color:'var(--tx3)'}}>{texts.length} texts · <a href="/textes" target="_blank" rel="noopener" style={{color:'var(--crb)'}}>View public page →</a></span>
+          <button className="btn btn-p" onClick={openNew}>+ New Text</button>
+        </div>
+
+        {textsLoading && <div className="loading-row"><span className="spinner"/> Loading texts...</div>}
+
+        {!textsLoading && texts.length === 0 && (
+          <div className="panel" style={{padding:'2rem',textAlign:'center',color:'var(--tx3)'}}>
+            No texts yet. Click &quot;+ New Text&quot; to add your first Text of the Month.
+          </div>
+        )}
+
+        {!textsLoading && texts.map(t => (
+          <div key={t.id} className="panel" style={{marginBottom:'.75rem'}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,padding:'.85rem 1rem'}}>
+              <span style={{fontSize:18}}>{t.featured ? '⭐' : '📄'}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title_en}</div>
+                <div style={{fontSize:11,color:'var(--tx3)'}}>
+                  {t.title_fr && `${t.title_fr} · `}{t.publishedAt}
+                  {t.featured && <span style={{marginLeft:6,background:'var(--crp)',color:'var(--crb)',padding:'1px 6px',borderRadius:2,fontSize:10,fontWeight:700}}>FEATURED</span>}
+                </div>
+              </div>
+              <div style={{display:'flex',gap:6,flexShrink:0}}>
+                {!t.featured && <button className="btn btn-s btn-sm" onClick={()=>featureText(t.id)} title="Set as Text of the Month">⭐ Feature</button>}
+                <button className="btn btn-s btn-sm" onClick={()=>openEdit(t)}>✏️ Edit</button>
+                <button className="btn btn-danger btn-sm" onClick={()=>deleteText(t.id, t.title_en)}>✕</button>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Edit/Create Modal */}
+        {editText !== null && (
+          <div className="modal-ov open" onClick={e=>e.target.className.includes('modal-ov')&&setEditText(null)}>
+            <div className="modal-box" style={{maxWidth:720}}>
+              <div className="modal-head">
+                <span className="modal-title">{textForm.title_en || 'New Text of the Month'}</span>
+                <button className="modal-cls" onClick={()=>setEditText(null)}>✕</button>
+              </div>
+              <div className="modal-body">
+                {/* Meta row */}
+                <div style={{display:'flex',gap:12,marginBottom:'1rem',flexWrap:'wrap'}}>
+                  <div className="field-row" style={{flex:'1 1 160px',marginBottom:0}}>
+                    <label className="field-label">Author</label>
+                    <input className="field-input" value={textForm.author||''} onChange={e=>setTextForm(f=>({...f,author:e.target.value}))}/>
+                  </div>
+                  <div className="field-row" style={{flex:'1 1 140px',marginBottom:0}}>
+                    <label className="field-label">Date</label>
+                    <input className="field-input" type="date" value={textForm.publishedAt||''} onChange={e=>setTextForm(f=>({...f,publishedAt:e.target.value}))}/>
+                  </div>
+                </div>
+                {/* Language tabs */}
+                <div className="tabs" style={{marginBottom:'1rem'}}>
+                  {Object.entries(LANG_LABELS).map(([l,label])=>(
+                    <button key={l} className={`tab-btn${textTab===l?' active':''}`} onClick={()=>setTextTab(l)}>{label}</button>
+                  ))}
+                </div>
+                {(FIELDS[textTab]||[]).map(([field, label])=>(
+                  <div className="field-row" key={field}>
+                    <label className="field-label">{label}</label>
+                    {field.startsWith('preview') || field.startsWith('full') || field.startsWith('subtitle')
+                      ? <textarea className="field-input field-textarea" style={{minHeight: field.startsWith('full') ? 200 : 100}}
+                          value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}
+                          placeholder={field.startsWith('preview') ? 'Paste the first ~25% of the text here' : field.startsWith('full') ? 'Paste the complete text here' : ''}/>
+                      : <input className="field-input" value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}/>
+                    }
+                    {field.startsWith('preview') && <div className="field-hint">{(textForm[field]||'').length} chars — aim for 400-800 chars</div>}
+                    {field.startsWith('full') && <div className="field-hint">{(textForm[field]||'').length} chars total</div>}
+                  </div>
+                ))}
+              </div>
+              <div className="modal-foot">
+                <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--tx2)',marginRight:'auto',cursor:'pointer'}}>
+                  <input type="checkbox" checked={!!textForm.featured} onChange={e=>setTextForm(f=>({...f,featured:e.target.checked}))} style={{accentColor:'var(--crb)',width:15,height:15}}/>
+                  Set as Text of the Month (featured)
+                </label>
+                <button className="btn btn-s" onClick={()=>setEditText(null)}>Cancel</button>
+                <button className="btn btn-p" onClick={saveText} disabled={textSaving}>
+                  {textSaving ? <><span className="spinner"/> Saving...</> : 'Save Text'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const sections = {
     sitelock: { label:'Site Lock', icon:'🔒', render: () => <SiteLockPanel siteLocked={siteLocked} setSiteLocked={setSiteLocked} toast={toast} /> },
     dashboard: { label:'Dashboard', icon:'⬡', render: renderDashboard },
     catalog: { label:'Catalog', icon:'📚', render: renderCatalog },
     availability: { label:'Availability', icon:'🔓', render: renderAvailability },
     synopses: { label:'Synopses', icon:'✍️', render: renderSynopses },
+    texts: { label:'Texts', icon:'✍️', render: renderTexts },
     bundles: { label:'Bundles', icon:'📦', render: () => <BundleAdmin toast={toast} books={data?.books||[]} /> },
     messages: { label:'Messages', icon:'✉️', render: () => <MessagesBoard toast={toast} setUnreadCount={setUnreadCount} /> },
     backups: { label:'Backups', icon:'💾', render: renderBackups },
