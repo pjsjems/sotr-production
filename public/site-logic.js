@@ -148,11 +148,13 @@ function buildBookCard(b, showVol=false){
    RENDER HOME
 ══════════════════════════════════════ */
 function renderHomeCatalog(){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const featured = ['mercer1','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1','anatomy1'];
-  document.getElementById('home-catalog-grid').innerHTML = featured.map(k=>buildBookCard(BOOKS[k])).join('');
+  document.getElementById('home-catalog-grid').innerHTML = featured.map(k=>BOOKS[k]).filter(Boolean).map(b=>buildBookCard(b)).join('');
 }
 
 function renderHomeSeriesGrid(){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   document.getElementById('home-series-grid').innerHTML = Object.values(SERIES).map(s=>`
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0" aria-label="Explore ${s.name}">
       <div class="soc-num">${s.num}</div>
@@ -164,15 +166,17 @@ function renderHomeSeriesGrid(){
 }
 
 function renderHeroMosaic(){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const keys = ['mercer1','iran','anatomy2','chess','atlas','neural'];
   document.getElementById('hero-mosaic').innerHTML = keys.map(k=>{
     const b=BOOKS[k];
+    if(!b) return null;
     return `<div class="hero-mini-card" onclick="openBook('${b.key}')" aria-label="${b.title}">
       <div class="hero-mini-inner" style="background:${b.color};">
         <div class="hero-mini-content"><div class="hmc-genre">${b.genre}</div><div class="hmc-title">${b.title}</div><div class="hmc-orn">${b.orn}</div></div>
       </div>
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 }
 
 function renderBBPreviews(){
@@ -195,6 +199,7 @@ function renderBBPreviews(){
    SERIES LIST PAGE
 ══════════════════════════════════════ */
 function renderSeriesListPage(){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   document.getElementById('series-list-grid').innerHTML = Object.values(SERIES).map(s=>`
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0">
       <div class="soc-num">${s.num}</div>
@@ -210,6 +215,7 @@ function renderSeriesListPage(){
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 let currentFmt = 'print';
 function openBook(key){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const b = BOOKS[key];
   // Cover in modal header
   document.getElementById('modal-cover-box').innerHTML = buildCover(b,'small');
@@ -330,6 +336,7 @@ async function notifySignup(bookKey, bookTitle) {
 }
 
 function renderRelated(b){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   // Layer 1: same series (excluding self)
   const sameSeries = b.seriesKey
     ? Object.values(BOOKS).filter(bk=>bk.key!==b.key && bk.seriesKey===b.seriesKey)
@@ -414,6 +421,7 @@ function closeMBg(e){ if(e.target===document.getElementById('modal-overlay')) cl
 const BADGE_CLASSES = {bundle:'badge-bundle',promo:'badge-promo',limited:'badge-limited',new:'badge-new'};
 const BADGE_LABELS  = {bundle:{en:'Bundle',fr:'Lot',es:'Paquete'},promo:{en:'Promotion',fr:'Promotion',es:'Promoción'},limited:{en:'&#9889; Limited Time',fr:'&#9889; Durée Limitée',es:'&#9889; Tiempo Limitado'},new:{en:'New',fr:'Nouveau',es:'Nuevo'}};
 function renderBundles(filter){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const data = filter==='all' ? BUNDLES : BUNDLES.filter(b=>b.types.includes(filter));
   document.getElementById('bundles-grid').innerHTML = data.map(b=>`
     <div class="bundle-card ${b.isGold?'gold-card':''}" onclick="openBundle('${b.id}')"
@@ -595,6 +603,7 @@ function showPage(id){
 }
 function openSeries(key){ SERIES[key]; const s=SERIES[key]; if(!s) return; openSeries2(key); }
 function openSeries2(key){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const s=SERIES[key];
   document.getElementById('sdp-breadcrumb').innerHTML=`<a onclick="showPage('home')" class="en">Home</a><a onclick="showPage('home')" class="fr">Accueil</a><a onclick="showPage('home')" class="es">Inicio</a><span>›</span><a onclick="showPage('series-list')" class="en">Series</a><a onclick="showPage('series-list')" class="fr">Séries</a><a onclick="showPage('series-list')" class="es">Series</a><span>›</span><span>${s.name}</span>`;
   document.getElementById('sdp-tag').textContent=s.tag;
@@ -644,6 +653,7 @@ function openSearch(){ document.getElementById('search-overlay').classList.add('
 function closeSearch(){ document.getElementById('search-overlay').classList.remove('open'); document.body.style.overflow=''; document.getElementById('si-input').value=''; document.getElementById('search-results').innerHTML=''; }
 function closeSBg(e){ if(e.target===document.getElementById('search-overlay')) closeSearch(); }
 function doSearch(){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const q=document.getElementById('si-input').value.toLowerCase();
   const out=document.getElementById('search-results');
   if(q.length<2){ out.innerHTML=''; return; }
@@ -656,8 +666,9 @@ function doSearch(){
    FOOTER CATALOG LINKS
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function renderFooterLinks(){
+  if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const keys=['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
-  document.getElementById('footer-catalog-links').innerHTML = keys.map(k=>`<li><a onclick="openBook('${k}')">${BOOKS[k].title.replace(/ - Book \d/,'').replace(/ Vol\. \d/,'')}</a></li>`).join('');
+  document.getElementById('footer-catalog-links').innerHTML = keys.filter(k=>BOOKS[k]).map(k=>`<li><a onclick="openBook('${k}')">${BOOKS[k].title.replace(/ - Book \d/,'').replace(/ Vol\. \d/,'')}</a></li>`).join('');
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -688,7 +699,7 @@ document.addEventListener('keydown',e=>{
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    INIT
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-loadCatalog().then(() => {
+function renderHome() {
   renderHeroMosaic();
   renderHomeCatalog();
   renderHomeSeriesGrid();
@@ -696,6 +707,18 @@ loadCatalog().then(() => {
   renderSeriesListPage();
   renderBundles('all');
   renderFooterLinks();
-  tickTimers();
-});
+}
+
+(async function init() {
+  await loadCatalog();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      renderHome();
+      tickTimers();
+    });
+  } else {
+    renderHome();
+    tickTimers();
+  }
+})();
 
