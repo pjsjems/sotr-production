@@ -1421,9 +1421,27 @@ export default function AdminDashboard() {
 
     const LANG_LABELS = { en:'🇬🇧 English', fr:'🇫🇷 French', es:'🇪🇸 Spanish' };
     const FIELDS = {
-      en: [['title_en','Title (EN)'],['subtitle_en','Subtitle (EN)'],['preview_en','Preview — ~25% of text (EN)'],['full_en','Full Text (EN)']],
-      fr: [['title_fr','Titre (FR)'],['subtitle_fr','Sous-titre (FR)'],['preview_fr','Extrait — ~25% du texte (FR)'],['full_fr','Texte complet (FR)']],
-      es: [['title_es','Título (ES)'],['subtitle_es','Subtítulo (ES)'],['preview_es','Extracto — ~25% del texto (ES)'],['full_es','Texto completo (ES)']],
+      en: [
+        ['title_en','Title (EN)'],
+        ['subtitle_en','Subtitle (EN) — optional'],
+        ['description_en','One-line description (EN) — shown in archive'],
+        ['preview_en','Preview — first ~25% of text (EN)'],
+        ['full_en','Full text (EN)'],
+      ],
+      fr: [
+        ['title_fr','Titre (FR)'],
+        ['subtitle_fr','Sous-titre (FR) — optionnel'],
+        ['description_fr',"Description d'une ligne (FR) — affichée dans l'archive"],
+        ['preview_fr','Extrait — premiers ~25% du texte (FR)'],
+        ['full_fr','Texte complet (FR)'],
+      ],
+      es: [
+        ['title_es','Título (ES)'],
+        ['subtitle_es','Subtítulo (ES) — opcional'],
+        ['description_es','Descripción de una línea (ES) — mostrada en el archivo'],
+        ['preview_es','Extracto — primeros ~25% del texto (ES)'],
+        ['full_es','Texto completo (ES)'],
+      ],
     };
 
     return (
@@ -1490,10 +1508,10 @@ export default function AdminDashboard() {
                 {(FIELDS[textTab]||[]).map(([field, label])=>(
                   <div className="field-row" key={field}>
                     <label className="field-label">{label}</label>
-                    {field.startsWith('preview') || field.startsWith('full') || field.startsWith('subtitle')
+                    {field.startsWith('preview') || field.startsWith('full')
                       ? <textarea className="field-input field-textarea" style={{minHeight: field.startsWith('full') ? 200 : 100}}
                           value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}
-                          placeholder={field.startsWith('preview') ? 'Paste the first ~25% of the text here' : field.startsWith('full') ? 'Paste the complete text here' : ''}/>
+                          placeholder={field.startsWith('preview') ? 'Paste the first ~25% of the text here' : 'Paste the complete text here'}/>
                       : <input className="field-input" value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}/>
                     }
                     {field.startsWith('preview') && <div className="field-hint">{(textForm[field]||'').length} chars — aim for 400-800 chars</div>}

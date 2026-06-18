@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 const LABELS = {
-  en: { section:'Text of the Month', by:'By', preview:'Preview', readMore:'Read the full text', emailPlaceholder:'your@email.com', emailBtn:'Send me the full text', emailHint:'Enter your email to read the full text. We send it once, no spam.', success:'The full text has been sent to your inbox.', errorEmail:'Please enter a valid email address.', errorFetch:'Something went wrong. Please try again.', allTexts:'All Texts', noFeatured:'No featured text this month.' },
-  fr: { section:'Texte du mois', by:'Par', preview:'Extrait', readMore:'Lire le texte complet', emailPlaceholder:'votre@email.com', emailBtn:"M'envoyer le texte complet", emailHint:'Entrez votre email pour lire le texte complet. Envoi unique, sans spam.', success:'Le texte complet a été envoyé dans votre boîte mail.', errorEmail:'Veuillez entrer une adresse email valide.', errorFetch:"Une erreur s'est produite. Veuillez réessayer.", allTexts:'Tous les textes', noFeatured:'Aucun texte à la une ce mois-ci.' },
-  es: { section:'Texto del mes', by:'Por', preview:'Extracto', readMore:'Leer el texto completo', emailPlaceholder:'tu@email.com', emailBtn:'Enviarme el texto completo', emailHint:'Ingresa tu email para leer el texto completo. Un solo envío, sin spam.', success:'El texto completo ha sido enviado a tu bandeja de entrada.', errorEmail:'Por favor ingresa un email válido.', errorFetch:'Algo salió mal. Por favor intenta de nuevo.', allTexts:'Todos los textos', noFeatured:'No hay texto destacado este mes.' },
+  en: { section:'Text of the Month', by:'By', preview:'Preview', readMore:'Read the full text', emailPlaceholder:'your@email.com', emailBtn:'Send me the full text', emailHint:'Enter your email to read the full text. We send it once, no spam.', success:'The full text has been sent to your inbox.', errorEmail:'Please enter a valid email address.', errorFetch:'Something went wrong. Please try again.', allTexts:'All Texts', noFeatured:'No featured text this month.', otherTexts:'See Other Texts', recentTitle:'Recent Texts', recentRead:'Read →', noRecent:'' },
+  fr: { section:'Texte du mois', by:'Par', preview:'Extrait', readMore:'Lire le texte complet', emailPlaceholder:'votre@email.com', emailBtn:"M'envoyer le texte complet", emailHint:'Entrez votre email pour lire le texte complet. Envoi unique, sans spam.', success:'Le texte complet a été envoyé dans votre boîte mail.', errorEmail:'Veuillez entrer une adresse email valide.', errorFetch:"Une erreur s'est produite. Veuillez réessayer.", allTexts:'Tous les textes', noFeatured:'Aucun texte à la une ce mois-ci.', otherTexts:'Voir les autres textes', recentTitle:'Textes récents', recentRead:'Lire →', noRecent:'' },
+  es: { section:'Texto del mes', by:'Por', preview:'Extracto', readMore:'Leer el texto completo', emailPlaceholder:'tu@email.com', emailBtn:'Enviarme el texto completo', emailHint:'Ingresa tu email para leer el texto completo. Un solo envío, sin spam.', success:'El texto completo ha sido enviado a tu bandeja de entrada.', errorEmail:'Por favor ingresa un email válido.', errorFetch:'Algo salió mal. Por favor intenta de nuevo.', allTexts:'Todos los textos', noFeatured:'No hay texto destacado este mes.', otherTexts:'Ver otros textos', recentTitle:'Textos recientes', recentRead:'Leer →', noRecent:'' },
 };
 
 export default function TextesPage() {
@@ -16,15 +16,37 @@ export default function TextesPage() {
   const [emailMsg, setEmailMsg] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [fullText, setFullText] = useState(null);
+  const [recentTexts, setRecentTexts] = useState([]);
+  const [requestedId, setRequestedId] = useState(null);
 
   useEffect(() => {
+    // Check if a specific text ID is requested via query param
+    const params = new URLSearchParams(window.location.search);
+    const reqId = params.get('id');
+    if (reqId) setRequestedId(reqId);
+
     const saved = (typeof window !== 'undefined' && localStorage.getItem('sotr-lang')) || 'en';
     if (['en','fr','es'].includes(saved)) setLang(saved);
+
     fetch('/api/texts').then(r=>r.json()).then(setTexts).catch(()=>setTexts([])).finally(()=>setLoading(false));
+
+    fetch('/api/texts?mode=archive')
+      .then(r => r.json())
+      .then(data => {
+        const all = Array.isArray(data) ? data : [];
+        const recent = all
+          .filter(t => !t.featured)
+          .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+          .slice(0, 3);
+        setRecentTexts(recent);
+      })
+      .catch(() => {});
   }, []);
 
   const L = LABELS[lang] || LABELS.en;
-  const featured = texts.find(t => t.featured);
+  const featured = requestedId
+    ? texts.find(t => t.id === requestedId) || texts.find(t => t.featured)
+    : texts.find(t => t.featured);
   const title  = featured?.[`title_${lang}`]  || featured?.title_en  || '';
   const sub    = featured?.[`subtitle_${lang}`]|| featured?.subtitle_en || '';
   const preview= featured?.[`preview_${lang}`] || featured?.preview_en || '';
@@ -109,9 +131,50 @@ export default function TextesPage() {
                 </div>
               )}
 
-              {/* Back link */}
-              <div style={{marginTop:'3rem',paddingTop:'1.5rem',borderTop:'1px solid #E8E2D9',textAlign:'center'}}>
-                <Link href="/" style={{fontSize:13,color:'#7A1515',textDecoration:'none',fontWeight:600,letterSpacing:'.06em'}}>← SPY ON THE RISE</Link>
+              {/* ── RECENT TEXTS ─────────────────────── */}
+              {recentTexts.length > 0 && (
+                <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #E8E2D9' }}>
+                  <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(15px, 2vw, 19px)', fontWeight: 700, color: '#16110C', marginBottom: '1.25rem', letterSpacing: '.01em' }}>
+                    {L.recentTitle}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {recentTexts.map(t => {
+                      const rt = t[`title_${lang}`] || t.title_en || '';
+                      const rd = t[`description_${lang}`] || t.description_en || '';
+                      const rdate = t.publishedAt
+                        ? new Date(t.publishedAt).toLocaleDateString(
+                            lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-US',
+                            { year: 'numeric', month: 'long' })
+                        : '';
+                      return (
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', padding: '.9rem 1rem', background: '#FAF8F5', borderRadius: 6, border: '1px solid #EDE8E2' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, color: '#9A8F85', marginBottom: '.25rem', letterSpacing: '.04em' }}>{rdate}</div>
+                            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(14px, 1.8vw, 17px)', fontWeight: 700, color: '#16110C', lineHeight: 1.3, marginBottom: '.3rem' }}>{rt}</div>
+                            <div style={{ fontSize: 13, color: '#6B6560', lineHeight: 1.55 }}>{rd}</div>
+                          </div>
+                          <Link href={`/textes?id=${t.id}`}
+                            style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: '#7A1515', textDecoration: 'none', border: '1px solid rgba(122,21,21,.25)', borderRadius: 4, padding: '5px 12px', letterSpacing: '.07em', whiteSpace: 'nowrap' }}>
+                            {L.recentRead}
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── ARCHIVE LINK + BACK ───────────────── */}
+              <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '2px solid #7A1515', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <Link href="/textes/archive"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: "'Source Sans 3', sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#fff', background: '#7A1515', textDecoration: 'none', borderRadius: 4, padding: '9px 18px' }}>
+                  <span>{L.otherTexts}</span>
+                  <span style={{ fontSize: 14 }}>→</span>
+                </Link>
+                <Link href="/"
+                  style={{ fontSize: 12, color: '#9A8F85', textDecoration: 'none', fontWeight: 600, letterSpacing: '.06em' }}>
+                  ← SPY ON THE RISE
+                </Link>
               </div>
             </>
           )}

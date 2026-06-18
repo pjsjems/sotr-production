@@ -28,26 +28,40 @@ export default function handler(req, res) {
 
     if (action === 'save') {
       if (!text?.id || !text?.title_en) return res.status(400).json({ error: 'id and title_en required' });
-      const texts = read();
-      const idx = texts.findIndex(t => t.id === text.id);
-      if (idx >= 0) texts[idx] = { ...texts[idx], ...text };
-      else texts.unshift({ publishedAt: new Date().toISOString().slice(0,10), featured: false, ...text });
-      write(texts);
-      return res.status(200).json({ success: true });
+      try {
+        const texts = read();
+        const idx = texts.findIndex(t => t.id === text.id);
+        if (idx >= 0) texts[idx] = { ...texts[idx], ...text };
+        else texts.unshift({ publishedAt: new Date().toISOString().slice(0,10), featured: false, ...text });
+        // When featured is checked, clear featured flag on all other texts
+        if (text.featured) texts.forEach(t => { if (t.id !== text.id) t.featured = false; });
+        write(texts);
+        return res.status(200).json({ success: true });
+      } catch(e) {
+        return res.status(500).json({ error: 'Failed to save: ' + (e.message || 'unknown error') });
+      }
     }
 
     if (action === 'feature') {
       const { id } = req.body;
-      const texts = read();
-      texts.forEach(t => { t.featured = t.id === id; });
-      write(texts);
-      return res.status(200).json({ success: true });
+      try {
+        const texts = read();
+        texts.forEach(t => { t.featured = t.id === id; });
+        write(texts);
+        return res.status(200).json({ success: true });
+      } catch(e) {
+        return res.status(500).json({ error: 'Failed to feature: ' + (e.message || 'unknown error') });
+      }
     }
 
     if (action === 'delete') {
       const { id } = req.body;
-      write(read().filter(t => t.id !== id));
-      return res.status(200).json({ success: true });
+      try {
+        write(read().filter(t => t.id !== id));
+        return res.status(200).json({ success: true });
+      } catch(e) {
+        return res.status(500).json({ error: 'Failed to delete: ' + (e.message || 'unknown error') });
+      }
     }
 
     return res.status(400).json({ error: 'Unknown action' });

@@ -792,3 +792,11 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
   background: rgba(122,21,21,.15);
   border-color: #7A1515;
 }
+
+/* ── Textes Archive page ───────────────────────────── */
+.textes-archive-item { transition: background .15s; }
+.textes-archive-item:hover { background: rgba(122,21,21,.03); }
+.textes-read-link:hover {
+  background: rgba(122,21,21,.08) !important;
+  border-color: #7A1515 !important;
+}

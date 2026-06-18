@@ -13,9 +13,13 @@ function readTexts() {
 }
 
 // Strip full content for public listing
-function sanitize(t) {
-  const { full_en, full_fr, full_es, ...safe } = t;
-  return safe;
+function sanitize(t, mode = 'preview') {
+  const { full_en, full_fr, full_es, ...withoutFull } = t;
+  if (mode === 'archive') {
+    const { preview_en, preview_fr, preview_es, ...archiveFields } = withoutFull;
+    return archiveFields;
+  }
+  return withoutFull;
 }
 
 export default async function handler(req, res) {
@@ -29,7 +33,8 @@ export default async function handler(req, res) {
       if (!t) return res.status(404).json({ error: 'Not found' });
       return res.status(200).json(sanitize(t));
     }
-    return res.status(200).json(texts.map(sanitize));
+    const mode = req.query.mode || 'preview';
+    return res.status(200).json(texts.map(t => sanitize(t, mode)));
   }
 
   // POST — email gate: caller submits { id, email, lang }
