@@ -1,40 +1,76 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Script from 'next/script';
+import { resolveComingSoonState } from '../lib/siteLock';
+import { readSiteLock } from '../lib/adminData';
 
 const COMING_SOON_MODE = true; // Set to false when ready to launch publicly
 
-export default function Home() {
+export async function getServerSideProps(context) {
+  try {
+    const siteLocked = await readSiteLock();
+    const previewToken = context.query?.preview || '';
+    const host = context.req?.headers?.host || '';
+    const resolved = resolveComingSoonState({
+      siteLocked,
+      hostname: host,
+      previewToken,
+      envComingSoonMode: COMING_SOON_MODE ? 'true' : 'false',
+    });
+    return { props: { initialSiteLocked: resolved } };
+  } catch {
+    return { props: { initialSiteLocked: false } };
+  }
+}
+
+export default function Home({ initialSiteLocked = false }) {
+  const [siteLocked, setSiteLocked] = useState(initialSiteLocked);
+
   useEffect(() => {
-    // Domain-based lock: show coming soon on public domain, allow full
-    // access on vercel.app preview URL
-    if (COMING_SOON_MODE) {
-      const host = window.location.hostname;
-      const isPublicDomain =
-        host === 'spyontherise.com' ||
-        host === 'www.spyontherise.com';
-      const isPreviewUrl =
-        host.includes('vercel.app') ||
-        host === 'localhost' ||
-        host === '127.0.0.1';
-      const hasAdminBypass =
-        new URLSearchParams(window.location.search).get('preview') === 'sotr2026' ||
-        localStorage.getItem('sotr-preview') === 'sotr2026';
-
-      if (new URLSearchParams(window.location.search).get('preview') === 'sotr2026') {
-        localStorage.setItem('sotr-preview', 'sotr2026');
-      }
-
-      if (isPublicDomain && !hasAdminBypass) {
-        const el = document.getElementById('coming-soon-overlay');
-        if (el) {
-          el.style.display = 'flex';
-          document.body.style.overflow = 'hidden';
-          document.body.style.pointerEvents = 'none';
-          el.style.pointerEvents = 'all';
-        }
-      }
+    const params = new URLSearchParams(window.location.search);
+    const previewToken = params.get('preview') || localStorage.getItem('sotr-preview');
+    if (previewToken === 'sotr2026') {
+      localStorage.setItem('sotr-preview', 'sotr2026');
     }
+
+    const syncLockState = () => {
+      fetch('/api/catalog-live', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((data) => {
+          const locked = resolveComingSoonState({
+            siteLocked: typeof data?.siteLocked === 'boolean' ? data.siteLocked : null,
+            hostname: window.location.hostname,
+            previewToken,
+            envComingSoonMode: COMING_SOON_MODE ? 'true' : 'false',
+          });
+          setSiteLocked(locked);
+
+          const el = document.getElementById('coming-soon-overlay');
+          if (!el) return;
+          if (locked) {
+            el.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            document.body.style.pointerEvents = 'none';
+            el.style.pointerEvents = 'all';
+          } else {
+            el.style.display = 'none';
+            document.body.style.overflow = '';
+            document.body.style.pointerEvents = '';
+          }
+        })
+        .catch(() => {
+          setSiteLocked(resolveComingSoonState({
+            siteLocked: null,
+            hostname: window.location.hostname,
+            previewToken,
+            envComingSoonMode: COMING_SOON_MODE ? 'true' : 'false',
+          }));
+        });
+    };
+
+    syncLockState();
+    const interval = window.setInterval(syncLockState, 10000);
+    return () => window.clearInterval(interval);
 
     // ── FIX: Set data-lang on the real <body> element ──────────────────
     // Next.js renders SITE_HTML inside a <div>, so the data-lang="en"
