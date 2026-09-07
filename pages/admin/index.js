@@ -2076,25 +2076,50 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {!textsLoading && texts.map(t => (
-          <div key={t.id} className="panel" style={{marginBottom:'.75rem'}}>
-            <div style={{display:'flex',alignItems:'center',gap:12,padding:'.85rem 1rem'}}>
-              <span style={{fontSize:18}}>{t.featured ? '⭐' : '📄'}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title_en}</div>
-                <div style={{fontSize:11,color:'var(--tx3)'}}>
-                  {(t.category_en || t.category) && `${t.category_en || t.category} · `}{t.publishedAt}
-                  {t.featured && <span style={{marginLeft:6,background:'var(--crp)',color:'var(--crb)',padding:'1px 6px',borderRadius:2,fontSize:10,fontWeight:700}}>FEATURED</span>}
+        {!textsLoading && texts.length > 0 && (() => {
+          const featured = texts.find(t => t.featured);
+          const archived = texts.filter(t => !t.featured);
+          const row = t => (
+            <div key={t.id} className="panel" style={{marginBottom:'.75rem'}}>
+              <div style={{display:'flex',alignItems:'center',gap:12,padding:'.85rem 1rem'}}>
+                <span style={{fontSize:18}}>{t.featured ? '⭐' : '📄'}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title_en}</div>
+                  <div style={{fontSize:11,color:'var(--tx3)'}}>
+                    {(t.category_en || t.category) && `${t.category_en || t.category} · `}{t.publishedAt}
+                    {t.featured && <span style={{marginLeft:6,background:'var(--crp)',color:'var(--crb)',padding:'1px 6px',borderRadius:2,fontSize:10,fontWeight:700}}>FEATURED</span>}
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  {!t.featured && <button className="btn btn-s btn-sm" onClick={()=>featureText(t.id)} title="Set as Text of the Month">⭐ Feature</button>}
+                  <button className="btn btn-s btn-sm" onClick={()=>openEdit(t)}>✏️ Edit</button>
+                  <button className="btn btn-danger btn-sm" onClick={()=>deleteText(t.id, t.title_en)}>✕</button>
                 </div>
               </div>
-              <div style={{display:'flex',gap:6,flexShrink:0}}>
-                {!t.featured && <button className="btn btn-s btn-sm" onClick={()=>featureText(t.id)} title="Set as Text of the Month">⭐ Feature</button>}
-                <button className="btn btn-s btn-sm" onClick={()=>openEdit(t)}>✏️ Edit</button>
-                <button className="btn btn-danger btn-sm" onClick={()=>deleteText(t.id, t.title_en)}>✕</button>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+          return (
+            <>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)',marginBottom:'.5rem'}}>
+                ⭐ Current Text of the Month
+              </div>
+              {featured ? row(featured) : (
+                <div className="panel" style={{padding:'1.25rem',textAlign:'center',color:'var(--tx3)',marginBottom:'.75rem',fontSize:13}}>
+                  No text is currently featured. Click &quot;Feature&quot; on one below, or create a new one.
+                </div>
+              )}
+
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)',margin:'1.5rem 0 .5rem'}}>
+                📚 Archived Texts ({archived.length})
+              </div>
+              {archived.length === 0 ? (
+                <div className="panel" style={{padding:'1.25rem',textAlign:'center',color:'var(--tx3)',fontSize:13}}>
+                  Past texts will appear here once a new one is featured.
+                </div>
+              ) : archived.map(row)}
+            </>
+          );
+        })()}
 
         {/* Edit/Create Modal */}
         {editText !== null && (

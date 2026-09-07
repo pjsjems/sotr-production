@@ -2,6 +2,7 @@ import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import { readSiteLock, writeSiteLock } from '../../../lib/adminData';
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
   const session = validateSession(parseCookies(req)['sotr-admin-session']);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
   if (req.method === 'GET') {
