@@ -1,9 +1,11 @@
+import { KV_URL, KV_TOKEN } from '../../../lib/adminData';
+
 export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'id required' });
 
-  const kvUrl   = process.env.KV_REST_API_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN;
+  const kvUrl   = KV_URL;
+  const kvToken = KV_TOKEN;
 
   if (!kvUrl || !kvToken) {
     return res.status(501).json({ error: 'Storage not configured' });

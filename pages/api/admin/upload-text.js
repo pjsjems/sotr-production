@@ -1,5 +1,5 @@
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
-import { readTexts, writeTexts } from '../../../lib/adminData';
+import { readTexts, writeTexts, KV_URL, KV_TOKEN } from '../../../lib/adminData';
 
 export const config = { api: { bodyParser: false } };
 
@@ -48,8 +48,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'File too large. Maximum 5MB.' });
   }
 
-  const kvUrl   = process.env.KV_REST_API_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN;
+  const kvUrl   = KV_URL;
+  const kvToken = KV_TOKEN;
 
   if (kvUrl && kvToken) {
     try {
