@@ -21,6 +21,7 @@ export default async function handler(req, res) {
     .filter(p => p.trim() && p.trim() !== '--');
 
   let textId = null;
+  let lang = 'en';
   let fileName = null;
   let fileBuffer = null;
   let mimeType = null;
@@ -30,6 +31,9 @@ export default async function handler(req, res) {
     const rawBody = bodyParts.join('\r\n\r\n').replace(/\r\n--$/, '');
     if (rawHdr.includes('name="textId"')) {
       textId = rawBody.trim();
+    } else if (rawHdr.includes('name="lang"')) {
+      const val = rawBody.trim();
+      if (['en', 'fr', 'es'].includes(val)) lang = val;
     } else if (rawHdr.includes('name="attachment"')) {
       const fnm = rawHdr.match(/filename="([^"]+)"/);
       fileName = fnm ? fnm[1] : 'attachment';
@@ -53,7 +57,12 @@ export default async function handler(req, res) {
 
   if (kvUrl && kvToken) {
     try {
-      const fileKey = `sotr:text-attachment:${textId}`;
+      // English keeps the legacy bare key so attachments uploaded before
+      // per-language support still resolve; French/Spanish get their own key
+      // so uploading one language never touches another's file.
+      const fileKey = lang === 'en'
+        ? `sotr:text-attachment:${textId}`
+        : `sotr:text-attachment:${textId}:${lang}`;
       const payload = {
         fileName,
         mimeType,
@@ -69,20 +78,26 @@ export default async function handler(req, res) {
         body: JSON.stringify({ value: JSON.stringify(payload) }),
       });
 
-      // Update the text record with attachment info
+      // Update the text record with attachment info for this language
       const texts = await readTexts();
       const idx = texts.findIndex(t => t.id === textId);
       if (idx >= 0) {
-        texts[idx].attachmentName = fileName;
-        texts[idx].attachmentMime = mimeType;
-        texts[idx].hasAttachment = true;
+        texts[idx][`attachmentName_${lang}`] = fileName;
+        texts[idx][`attachmentMime_${lang}`] = mimeType;
+        texts[idx][`hasAttachment_${lang}`] = true;
+        if (lang === 'en') {
+          // Keep legacy flat fields in sync for any older reader still using them
+          texts[idx].attachmentName = fileName;
+          texts[idx].attachmentMime = mimeType;
+          texts[idx].hasAttachment = true;
+        }
         await writeTexts(texts);
       }
 
       return res.status(200).json({
         success: true,
         fileName,
-        downloadUrl: `/api/texts/download?id=${textId}`,
+        downloadUrl: `/api/texts/download?id=${textId}&lang=${lang}`,
       });
     } catch (e) {
       return res.status(500).json({ error: e.message });

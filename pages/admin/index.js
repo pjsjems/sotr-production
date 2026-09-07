@@ -1857,26 +1857,74 @@ export default function AdminDashboard() {
   }
 
   function renderTexts() {
+    // 9 preset categories, translated so grouping stays consistent while
+    // each language shows its own label. [en, fr, es] per row.
+    const CATEGORY_PRESETS = [
+      ['Geopolitics','Géopolitique','Geopolítica'],
+      ['Social Issues','Enjeux sociaux','Problemas sociales'],
+      ['Human Psychology','Psychologie humaine','Psicología humana'],
+      ['Technology and AI','Technologie et IA','Tecnología e IA'],
+      ['Philosophy and Meaning','Philosophie et sens','Filosofía y sentido'],
+      ['Power and Influence','Pouvoir et influence','Poder e influencia'],
+      ['Culture and Identity','Culture et identité','Cultura e identidad'],
+      ['Economics and Global Trends','Économie et tendances mondiales','Economía y tendencias globales'],
+      ['Modern Relationships','Relations modernes','Relaciones modernas'],
+    ];
+    const CAT_IDX = { en:0, fr:1, es:2 };
+
     function openNew() {
       const id = 'text-' + Date.now();
       setEditText({});
-      setTextForm({ id, title_en:'', title_fr:'', title_es:'', subtitle_en:'', subtitle_fr:'', subtitle_es:'', preview_en:'', preview_fr:'', preview_es:'', full_en:'', full_fr:'', full_es:'', author:'Jems S. Pompée', publishedAt: new Date().toISOString().slice(0,10), featured: false });
+      setTextForm({
+        id, title_en:'', title_fr:'', title_es:'',
+        subtitle_en:'', subtitle_fr:'', subtitle_es:'',
+        category_en:'', category_fr:'', category_es:'',
+        description_en:'', description_fr:'', description_es:'',
+        preview_en:'', preview_fr:'', preview_es:'',
+        full_en:'', full_fr:'', full_es:'',
+        hasAttachment_en:false, attachmentName_en:'',
+        hasAttachment_fr:false, attachmentName_fr:'',
+        hasAttachment_es:false, attachmentName_es:'',
+        author:'Jems S. Pompée', publishedAt: new Date().toISOString().slice(0,10), featured: false,
+      });
       setTextTab('en');
     }
 
     function openEdit(t) {
       setEditText(t);
-      setTextForm({...t});
+      setTextForm({
+        ...t,
+        // Migrate legacy single-category/single-attachment records so
+        // editing them doesn't lose what was already there.
+        category_en: t.category_en ?? t.category ?? '',
+        category_fr: t.category_fr ?? '',
+        category_es: t.category_es ?? '',
+        hasAttachment_en: t.hasAttachment_en ?? t.hasAttachment ?? false,
+        attachmentName_en: t.attachmentName_en ?? t.attachmentName ?? '',
+        hasAttachment_fr: t.hasAttachment_fr ?? false,
+        attachmentName_fr: t.attachmentName_fr ?? '',
+        hasAttachment_es: t.hasAttachment_es ?? false,
+        attachmentName_es: t.attachmentName_es ?? '',
+      });
       setTextTab('en');
     }
 
     async function saveText() {
       if (!textForm.id || !textForm.title_en) { toast('Title (EN) is required','error'); return; }
+      // If "+ Add New Category" was opened but never confirmed with "Set",
+      // resolve it here instead of saving the literal "__new__" marker.
+      const payload = { ...textForm };
+      ['en','fr','es'].forEach(l => {
+        if (payload[`category_${l}`] === '__new__') {
+          payload[`category_${l}`] = payload[`customCategory_${l}`] || '';
+        }
+        delete payload[`customCategory_${l}`];
+      });
       setTextSaving(true);
       try {
         const r = await fetch('/api/admin/texts', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ action:'save', text: textForm }),
+          body: JSON.stringify({ action:'save', text: payload }),
         });
         const d = await r.json();
         if (d.success) {
@@ -1884,7 +1932,7 @@ export default function AdminDashboard() {
           setEditText(null);
           const r2 = await fetch('/api/admin/texts');
           const d2 = await r2.json();
-          setTexts(d2.texts || []);
+          setTexts(Array.isArray(d2.texts) ? d2.texts : []);
         } else toast(d.error||'Save failed','error');
       } catch { toast('Error saving text','error'); }
       setTextSaving(false);
@@ -1895,7 +1943,7 @@ export default function AdminDashboard() {
         await fetch('/api/admin/texts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'feature', id }) });
         const r = await fetch('/api/admin/texts');
         const d = await r.json();
-        setTexts(d.texts || []);
+        setTexts(Array.isArray(d.texts) ? d.texts : []);
         toast('Featured text updated','success');
       } catch { toast('Error','error'); }
     }
@@ -1909,7 +1957,28 @@ export default function AdminDashboard() {
       } catch { toast('Error','error'); }
     }
 
+    function uploadAttachment(lang, file) {
+      if (!file) return;
+      if (!textForm.id) { toast('Save the text first, then upload the attachment.', 'warning'); return; }
+      const fd = new FormData();
+      fd.append('textId', textForm.id);
+      fd.append('lang', lang);
+      fd.append('attachment', file);
+      toast('Uploading attachment...', 'warning');
+      fetch('/api/admin/upload-text', { method:'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            toast(`Uploaded: ${d.fileName}`, 'success');
+            setTextForm(f => ({ ...f, [`hasAttachment_${lang}`]: true, [`attachmentName_${lang}`]: d.fileName }));
+          } else toast(d.error || 'Upload failed', 'error');
+        })
+        .catch(() => toast('Upload failed', 'error'));
+    }
+
     const LANG_LABELS = { en:'🇬🇧 English', fr:'🇫🇷 French', es:'🇪🇸 Spanish' };
+    const CATEGORY_TITLE_LABEL = { en:'Category (EN)', fr:'Catégorie (FR)', es:'Categoría (ES)' };
+    const ATTACHMENT_LABEL = { en:'Attachment — English (PDF or Word, max 5MB)', fr:'Pièce jointe — Français (PDF ou Word, max 5MB)', es:'Adjunto — Español (PDF o Word, máx. 5MB)' };
     const FIELDS = {
       en: [
         ['title_en','Title (EN)'],
@@ -1934,6 +2003,13 @@ export default function AdminDashboard() {
       ],
     };
 
+    const lang = textTab;
+    const catField = `category_${lang}`;
+    const customField = `customCategory_${lang}`;
+    const attField = `hasAttachment_${lang}`;
+    const attNameField = `attachmentName_${lang}`;
+    const catIdx = CAT_IDX[lang] ?? 0;
+
     return (
       <div>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
@@ -1956,7 +2032,7 @@ export default function AdminDashboard() {
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title_en}</div>
                 <div style={{fontSize:11,color:'var(--tx3)'}}>
-                  {t.title_fr && `${t.title_fr} · `}{t.publishedAt}
+                  {(t.category_en || t.category) && `${t.category_en || t.category} · `}{t.publishedAt}
                   {t.featured && <span style={{marginLeft:6,background:'var(--crp)',color:'var(--crb)',padding:'1px 6px',borderRadius:2,fontSize:10,fontWeight:700}}>FEATURED</span>}
                 </div>
               </div>
@@ -1989,112 +2065,97 @@ export default function AdminDashboard() {
                     <input className="field-input" type="date" value={textForm.publishedAt||''} onChange={e=>setTextForm(f=>({...f,publishedAt:e.target.value}))}/>
                   </div>
                 </div>
-                {/* Category field */}
-                <div className="field-row">
-                  <label className="field-label">Category</label>
-                  {textForm.category === '__new__' ? (
-                    <div style={{ display:'flex', gap:8 }}>
-                      <input className="field-input"
-                        placeholder="Type new category name..."
-                        value={textForm.customCategory || ''}
-                        onChange={e => setTextForm(f => ({
-                          ...f, customCategory: e.target.value
-                        }))}
-                      />
-                      <button className="btn btn-s btn-sm"
-                        onClick={() => setTextForm(f => ({
-                          ...f,
-                          category: f.customCategory || '',
-                          customCategory: '',
-                        }))}>
-                        Set
-                      </button>
-                      <button className="btn btn-s btn-sm"
-                        onClick={() => setTextForm(f => ({
-                          ...f, category: '', customCategory: ''
-                        }))}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <select className="field-input field-select"
-                      value={textForm.category || ''}
-                      onChange={e => setTextForm(f => ({
-                        ...f, category: e.target.value
-                      }))}>
-                      <option value="">Select a category...</option>
-                      <option value="Geopolitics">Geopolitics</option>
-                      <option value="Social Issues">Social Issues</option>
-                      <option value="Human Psychology">Human Psychology</option>
-                      <option value="Technology and AI">Technology and AI</option>
-                      <option value="Philosophy and Meaning">Philosophy and Meaning</option>
-                      <option value="Power and Influence">Power and Influence</option>
-                      <option value="Culture and Identity">Culture and Identity</option>
-                      <option value="Economics and Global Trends">Economics and Global Trends</option>
-                      <option value="Modern Relationships">Modern Relationships</option>
-                      <option value="__new__">+ Add New Category</option>
-                    </select>
-                  )}
-                </div>
-                {/* Attachment upload */}
-                <div className="field-row">
-                  <label className="field-label">Attachment (PDF or Word, max 5MB)</label>
-                  <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-                    {textForm.hasAttachment && (
-                      <a href={`/api/texts/download?id=${textForm.id}`}
-                        target="_blank" rel="noopener"
-                        className="btn btn-s btn-sm">
-                        Download: {textForm.attachmentName || 'File'}
-                      </a>
-                    )}
-                    <input type="file" accept=".pdf,.doc,.docx"
-                      id="text-attachment-input"
-                      style={{ display:'none' }}
-                      onChange={async e => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        if (!textForm.id) {
-                          toast('Save the text first, then upload the attachment.', 'warning');
-                          return;
-                        }
-                        const fd = new FormData();
-                        fd.append('textId', textForm.id);
-                        fd.append('attachment', file);
-                        toast('Uploading attachment...', 'warning');
-                        try {
-                          const r = await fetch('/api/admin/upload-text', {
-                            method: 'POST', body: fd,
-                          });
-                          const d = await r.json();
-                          if (d.success) {
-                            toast(`Uploaded: ${d.fileName}`, 'success');
-                            setTextForm(f => ({
-                              ...f,
-                              hasAttachment: true,
-                              attachmentName: d.fileName,
-                            }));
-                          } else toast(d.error, 'error');
-                        } catch {
-                          toast('Upload failed', 'error');
-                        }
-                        e.target.value = '';
-                      }}
-                    />
-                    <button className="btn btn-s btn-sm"
-                      onClick={() => document.getElementById('text-attachment-input').click()}>
-                      {textForm.hasAttachment ? 'Replace File' : 'Upload PDF or Word'}
-                    </button>
-                  </div>
-                  <div className="field-hint">
-                    Save the text first before uploading an attachment.
-                  </div>
-                </div>
-                {/* Language tabs */}
+
+                {/* Language tabs — category, attachment and text fields below all follow the active tab */}
                 <div className="tabs" style={{marginBottom:'1rem'}}>
                   {Object.entries(LANG_LABELS).map(([l,label])=>(
                     <button key={l} className={`tab-btn${textTab===l?' active':''}`} onClick={()=>setTextTab(l)}>{label}</button>
                   ))}
                 </div>
+
+                {/* Category — separate value per language */}
+                <div className="field-row">
+                  <label className="field-label">{CATEGORY_TITLE_LABEL[lang]}</label>
+                  {textForm[catField] === '__new__' ? (
+                    <div style={{ display:'flex', gap:8 }}>
+                      <input className="field-input"
+                        placeholder="Type new category name..."
+                        value={textForm[customField] || ''}
+                        onChange={e => { const v = e.target.value; setTextForm(f => ({ ...f, [customField]: v })); }}
+                      />
+                      <button className="btn btn-s btn-sm"
+                        onClick={() => setTextForm(f => ({
+                          ...f,
+                          [catField]: f[customField] || '',
+                          [customField]: '',
+                        }))}>
+                        Set
+                      </button>
+                      <button className="btn btn-s btn-sm"
+                        onClick={() => setTextForm(f => ({ ...f, [catField]: '', [customField]: '' }))}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <select className="field-input field-select"
+                      value={textForm[catField] || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setTextForm(f => {
+                          const next = { ...f, [catField]: val };
+                          // Convenience: prefill the other two languages with the
+                          // matching translated preset if they're still empty.
+                          if (val !== '__new__') {
+                            const idx = CATEGORY_PRESETS.findIndex(row => row[catIdx] === val);
+                            if (idx >= 0) {
+                              ['en','fr','es'].forEach((l2, i) => {
+                                const otherField = `category_${l2}`;
+                                if (l2 !== lang && !f[otherField]) next[otherField] = CATEGORY_PRESETS[idx][i];
+                              });
+                            }
+                          }
+                          return next;
+                        });
+                      }}>
+                      <option value="">Select a category...</option>
+                      {CATEGORY_PRESETS.map(row => (
+                        <option key={row[catIdx]} value={row[catIdx]}>{row[catIdx]}</option>
+                      ))}
+                      <option value="__new__">+ Add New Category</option>
+                    </select>
+                  )}
+                </div>
+
+                {/* Attachment — separate file slot per language */}
+                <div className="field-row">
+                  <label className="field-label">{ATTACHMENT_LABEL[lang]}</label>
+                  <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                    {textForm[attField] && (
+                      <a href={`/api/texts/download?id=${textForm.id}&lang=${lang}`}
+                        target="_blank" rel="noopener"
+                        className="btn btn-s btn-sm">
+                        Download: {textForm[attNameField] || 'File'}
+                      </a>
+                    )}
+                    <input type="file" accept=".pdf,.doc,.docx"
+                      id={`text-attachment-input-${lang}`}
+                      style={{ display:'none' }}
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        uploadAttachment(lang, file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <button className="btn btn-s btn-sm"
+                      onClick={() => document.getElementById(`text-attachment-input-${lang}`).click()}>
+                      {textForm[attField] ? 'Replace File' : 'Upload PDF or Word'}
+                    </button>
+                  </div>
+                  <div className="field-hint">
+                    Save the text first before uploading an attachment. Each language keeps its own file.
+                  </div>
+                </div>
+
                 {(FIELDS[textTab]||[]).map(([field, label])=>(
                   <div className="field-row" key={field}>
                     <label className="field-label">{label}</label>

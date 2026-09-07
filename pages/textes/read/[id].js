@@ -47,9 +47,11 @@ export default function TextReadPage() {
   );
 
   const labels = L[lang] || L.en;
-  const title   = text[`title_${lang}`]    || text.title_en    || '';
-  const sub     = text[`subtitle_${lang}`] || text.subtitle_en || '';
-  const preview = text[`preview_${lang}`]  || text.preview_en  || '';
+  const title    = text[`title_${lang}`]    || text.title_en    || '';
+  const sub      = text[`subtitle_${lang}`] || text.subtitle_en || '';
+  const preview  = text[`preview_${lang}`]  || text.preview_en  || '';
+  const category = text[`category_${lang}`] || text.category_en || text.category || '';
+  const hasAtt   = lang === 'en' ? !!(text.hasAttachment_en ?? text.hasAttachment) : !!text[`hasAttachment_${lang}`];
   const author  = text.author || 'Jems S. Pompée';
   const fmtDate = text.publishedAt
     ? new Date(text.publishedAt).toLocaleDateString(
@@ -87,9 +89,9 @@ export default function TextReadPage() {
 
         {/* Header */}
         <div style={{ background:'#16110C', padding:'3rem 1.5rem 2.5rem', textAlign:'center' }}>
-          {text.category && (
+          {category && (
             <div style={{ fontSize:10, fontWeight:700, letterSpacing:'.2em', textTransform:'uppercase', color:'#7A1515', marginBottom:'.6rem' }}>
-              {text.category}
+              {category}
             </div>
           )}
           <div style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(24px,4.5vw,48px)', fontWeight:700, color:'#F0EDE8', lineHeight:1.15, marginBottom:'.75rem', maxWidth:700, margin:'0 auto .75rem' }}>
@@ -148,9 +150,9 @@ export default function TextReadPage() {
           )}
 
           {/* Download attachment if available */}
-          {text.hasAttachment && (
+          {hasAtt && (
             <div style={{ marginTop:'2rem', textAlign:'center' }}>
-              <a href={`/api/texts/download?id=${text.id}`}
+              <a href={`/api/texts/download?id=${text.id}&lang=${lang}`}
                 target="_blank" rel="noopener"
                 style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:'#7A1515', textDecoration:'none', border:'1px solid rgba(122,21,21,.3)', borderRadius:4, padding:'8px 18px', letterSpacing:'.07em' }}>
                 ↓ {labels.download}

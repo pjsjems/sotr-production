@@ -10,7 +10,7 @@ const L = {
 
 export default function TextesArchive() {
   const [lang, setLang] = useState('en');
-  const [groups, setGroups] = useState({});
+  const [allTexts, setAllTexts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,24 +18,26 @@ export default function TextesArchive() {
     if (['en','fr','es'].includes(saved)) setLang(saved);
     fetch('/api/texts?mode=archive')
       .then(r => r.json())
-      .then(data => {
-        const texts = Array.isArray(data) ? data : [];
-        const sorted = [...texts].sort((a,b) => {
-          if (a.featured && !b.featured) return -1;
-          if (!a.featured && b.featured) return 1;
-          return new Date(b.publishedAt) - new Date(a.publishedAt);
-        });
-        const grouped = {};
-        sorted.forEach(t => {
-          const cat = t.category || 'Uncategorized';
-          if (!grouped[cat]) grouped[cat] = [];
-          grouped[cat].push(t);
-        });
-        setGroups(grouped);
-      })
+      .then(data => setAllTexts(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Group by this language's category (falls back to EN, then legacy
+  // flat field) so switching language re-labels categories without
+  // losing any previously published Text of the Month.
+  const groups = {};
+  [...allTexts]
+    .sort((a, b) => {
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+      return new Date(b.publishedAt) - new Date(a.publishedAt);
+    })
+    .forEach(t => {
+      const cat = t[`category_${lang}`] || t.category_en || t.category || 'Uncategorized';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(t);
+    });
 
   const labels = L[lang] || L.en;
 

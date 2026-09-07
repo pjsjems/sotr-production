@@ -3,6 +3,7 @@ import { KV_URL, KV_TOKEN } from '../../../lib/adminData';
 export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'id required' });
+  const lang = ['en', 'fr', 'es'].includes(req.query.lang) ? req.query.lang : 'en';
 
   const kvUrl   = KV_URL;
   const kvToken = KV_TOKEN;
@@ -12,7 +13,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const fileKey = `sotr:text-attachment:${id}`;
+    const fileKey = lang === 'en'
+      ? `sotr:text-attachment:${id}`
+      : `sotr:text-attachment:${id}:${lang}`;
     const r = await fetch(`${kvUrl}/get/${fileKey}`, {
       headers: { Authorization: `Bearer ${kvToken}` },
     });
