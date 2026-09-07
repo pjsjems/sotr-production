@@ -1872,10 +1872,43 @@ export default function AdminDashboard() {
     ];
     const CAT_IDX = { en:0, fr:1, es:2 };
 
+    // Drafts autosave to localStorage as the admin types, so the form can
+    // never lose in-progress work — it's only cleared once a real Save
+    // succeeds. "text-draft-new" holds whatever brand-new text is in
+    // progress; existing texts get their own key by id.
+    const NEW_DRAFT_KEY = 'sotr-text-draft-new';
+    const isNewDraft = editText !== null && Object.keys(editText).length === 0;
+    const draftKey = textForm.id ? (isNewDraft ? NEW_DRAFT_KEY : `sotr-text-draft-${textForm.id}`) : null;
+
+    function loadDraft(key) {
+      try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    }
+    function persistDraft(key, data) {
+      try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+    }
+    function clearDraft(key) {
+      try { localStorage.removeItem(key); } catch {}
+    }
+    // Every field change goes through this so the draft is always current.
+    function updateTextForm(updater) {
+      setTextForm(f => {
+        const next = typeof updater === 'function' ? updater(f) : updater;
+        persistDraft(draftKey, next);
+        return next;
+      });
+    }
+
     function openNew() {
+      const draft = loadDraft(NEW_DRAFT_KEY);
+      if (draft && draft.id) {
+        setEditText({});
+        setTextForm(draft);
+        toast('Restored your unsaved draft', 'warning');
+        setTextTab('en');
+        return;
+      }
       const id = 'text-' + Date.now();
-      setEditText({});
-      setTextForm({
+      const fresh = {
         id, title_en:'', title_fr:'', title_es:'',
         subtitle_en:'', subtitle_fr:'', subtitle_es:'',
         category_en:'', category_fr:'', category_es:'',
@@ -1886,27 +1919,44 @@ export default function AdminDashboard() {
         hasAttachment_fr:false, attachmentName_fr:'',
         hasAttachment_es:false, attachmentName_es:'',
         author:'Jems S. Pompée', publishedAt: new Date().toISOString().slice(0,10), featured: false,
-      });
+      };
+      setEditText({});
+      setTextForm(fresh);
+      persistDraft(NEW_DRAFT_KEY, fresh);
       setTextTab('en');
     }
 
     function openEdit(t) {
+      const key = `sotr-text-draft-${t.id}`;
+      const draft = loadDraft(key);
       setEditText(t);
-      setTextForm({
-        ...t,
+      if (draft) {
+        setTextForm(draft);
+        toast('Restored your unsaved draft for this text', 'warning');
+      } else {
         // Migrate legacy single-category/single-attachment records so
         // editing them doesn't lose what was already there.
-        category_en: t.category_en ?? t.category ?? '',
-        category_fr: t.category_fr ?? '',
-        category_es: t.category_es ?? '',
-        hasAttachment_en: t.hasAttachment_en ?? t.hasAttachment ?? false,
-        attachmentName_en: t.attachmentName_en ?? t.attachmentName ?? '',
-        hasAttachment_fr: t.hasAttachment_fr ?? false,
-        attachmentName_fr: t.attachmentName_fr ?? '',
-        hasAttachment_es: t.hasAttachment_es ?? false,
-        attachmentName_es: t.attachmentName_es ?? '',
-      });
+        const migrated = {
+          ...t,
+          category_en: t.category_en ?? t.category ?? '',
+          category_fr: t.category_fr ?? '',
+          category_es: t.category_es ?? '',
+          hasAttachment_en: t.hasAttachment_en ?? t.hasAttachment ?? false,
+          attachmentName_en: t.attachmentName_en ?? t.attachmentName ?? '',
+          hasAttachment_fr: t.hasAttachment_fr ?? false,
+          attachmentName_fr: t.attachmentName_fr ?? '',
+          hasAttachment_es: t.hasAttachment_es ?? false,
+          attachmentName_es: t.attachmentName_es ?? '',
+        };
+        setTextForm(migrated);
+        persistDraft(key, migrated);
+      }
       setTextTab('en');
+    }
+
+    function discardDraft() {
+      clearDraft(draftKey);
+      setEditText(null);
     }
 
     async function saveText() {
@@ -1929,6 +1979,7 @@ export default function AdminDashboard() {
         const d = await r.json();
         if (d.success) {
           toast('Text saved','success');
+          clearDraft(draftKey);
           setEditText(null);
           const r2 = await fetch('/api/admin/texts');
           const d2 = await r2.json();
@@ -1970,7 +2021,7 @@ export default function AdminDashboard() {
         .then(d => {
           if (d.success) {
             toast(`Uploaded: ${d.fileName}`, 'success');
-            setTextForm(f => ({ ...f, [`hasAttachment_${lang}`]: true, [`attachmentName_${lang}`]: d.fileName }));
+            updateTextForm(f => ({ ...f, [`hasAttachment_${lang}`]: true, [`attachmentName_${lang}`]: d.fileName }));
           } else toast(d.error || 'Upload failed', 'error');
         })
         .catch(() => toast('Upload failed', 'error'));
@@ -2047,22 +2098,24 @@ export default function AdminDashboard() {
 
         {/* Edit/Create Modal */}
         {editText !== null && (
-          <div className="modal-ov open" onClick={e=>e.target.className.includes('modal-ov')&&setEditText(null)}>
+          <div className="modal-ov open">
             <div className="modal-box" style={{maxWidth:720}}>
               <div className="modal-head">
                 <span className="modal-title">{textForm.title_en || 'New Text of the Month'}</span>
-                <button className="modal-cls" onClick={()=>setEditText(null)}>✕</button>
+              </div>
+              <div style={{padding:'.6rem 1.5rem 0', fontSize:12, color:'var(--tx3)'}}>
+                Draft auto-saved as you type. Use Save or Cancel below to close this form — clicking outside won&apos;t close it.
               </div>
               <div className="modal-body">
                 {/* Meta row */}
                 <div style={{display:'flex',gap:12,marginBottom:'1rem',flexWrap:'wrap'}}>
                   <div className="field-row" style={{flex:'1 1 160px',marginBottom:0}}>
                     <label className="field-label">Author</label>
-                    <input className="field-input" value={textForm.author||''} onChange={e=>setTextForm(f=>({...f,author:e.target.value}))}/>
+                    <input className="field-input" value={textForm.author||''} onChange={e=>updateTextForm(f=>({...f,author:e.target.value}))}/>
                   </div>
                   <div className="field-row" style={{flex:'1 1 140px',marginBottom:0}}>
                     <label className="field-label">Date</label>
-                    <input className="field-input" type="date" value={textForm.publishedAt||''} onChange={e=>setTextForm(f=>({...f,publishedAt:e.target.value}))}/>
+                    <input className="field-input" type="date" value={textForm.publishedAt||''} onChange={e=>updateTextForm(f=>({...f,publishedAt:e.target.value}))}/>
                   </div>
                 </div>
 
@@ -2081,10 +2134,10 @@ export default function AdminDashboard() {
                       <input className="field-input"
                         placeholder="Type new category name..."
                         value={textForm[customField] || ''}
-                        onChange={e => { const v = e.target.value; setTextForm(f => ({ ...f, [customField]: v })); }}
+                        onChange={e => { const v = e.target.value; updateTextForm(f => ({ ...f, [customField]: v })); }}
                       />
                       <button className="btn btn-s btn-sm"
-                        onClick={() => setTextForm(f => ({
+                        onClick={() => updateTextForm(f => ({
                           ...f,
                           [catField]: f[customField] || '',
                           [customField]: '',
@@ -2092,7 +2145,7 @@ export default function AdminDashboard() {
                         Set
                       </button>
                       <button className="btn btn-s btn-sm"
-                        onClick={() => setTextForm(f => ({ ...f, [catField]: '', [customField]: '' }))}>
+                        onClick={() => updateTextForm(f => ({ ...f, [catField]: '', [customField]: '' }))}>
                         Cancel
                       </button>
                     </div>
@@ -2101,7 +2154,7 @@ export default function AdminDashboard() {
                       value={textForm[catField] || ''}
                       onChange={e => {
                         const val = e.target.value;
-                        setTextForm(f => {
+                        updateTextForm(f => {
                           const next = { ...f, [catField]: val };
                           // Convenience: prefill the other two languages with the
                           // matching translated preset if they're still empty.
@@ -2161,9 +2214,9 @@ export default function AdminDashboard() {
                     <label className="field-label">{label}</label>
                     {field.startsWith('preview') || field.startsWith('full')
                       ? <textarea className="field-input field-textarea" style={{minHeight: field.startsWith('full') ? 200 : 100}}
-                          value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}
+                          value={textForm[field]||''} onChange={e=>updateTextForm(f=>({...f,[field]:e.target.value}))}
                           placeholder={field.startsWith('preview') ? 'Paste the first ~25% of the text here' : 'Paste the complete text here'}/>
-                      : <input className="field-input" value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}/>
+                      : <input className="field-input" value={textForm[field]||''} onChange={e=>updateTextForm(f=>({...f,[field]:e.target.value}))}/>
                     }
                     {field.startsWith('preview') && <div className="field-hint">{(textForm[field]||'').length} chars, aim for 400-800 chars</div>}
                     {field.startsWith('full') && <div className="field-hint">{(textForm[field]||'').length} chars total</div>}
@@ -2172,10 +2225,11 @@ export default function AdminDashboard() {
               </div>
               <div className="modal-foot">
                 <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--tx2)',marginRight:'auto',cursor:'pointer'}}>
-                  <input type="checkbox" checked={!!textForm.featured} onChange={e=>setTextForm(f=>({...f,featured:e.target.checked}))} style={{accentColor:'var(--crb)',width:15,height:15}}/>
+                  <input type="checkbox" checked={!!textForm.featured} onChange={e=>updateTextForm(f=>({...f,featured:e.target.checked}))} style={{accentColor:'var(--crb)',width:15,height:15}}/>
                   Set as Text of the Month (featured)
                 </label>
-                <button className="btn btn-s" onClick={()=>setEditText(null)}>Cancel</button>
+                <button className="btn btn-s" onClick={discardDraft} title="Close and delete this unsaved draft">Discard Draft</button>
+                <button className="btn btn-s" onClick={()=>setEditText(null)} title="Close, keeping your progress as a draft">Cancel (Keep as Draft)</button>
                 <button className="btn btn-p" onClick={saveText} disabled={textSaving}>
                   {textSaving ? <><span className="spinner"/> Saving...</> : 'Save Text'}
                 </button>
