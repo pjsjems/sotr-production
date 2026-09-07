@@ -1,16 +1,8 @@
 // pages/api/texts.js
-// GET  /api/texts          — returns all texts (preview only, no full content)
-// GET  /api/texts?id=slug  — returns preview for one text
-// POST /api/texts          — email gate: returns full text after email capture
-import fs from 'fs';
-import path from 'path';
-
-const TEXTS_PATH = path.join(process.cwd(), 'data', 'texts.json');
-
-function readTexts() {
-  try { return JSON.parse(fs.readFileSync(TEXTS_PATH, 'utf8')); }
-  catch { return []; }
-}
+// GET  /api/texts          : returns all texts (preview only, no full content)
+// GET  /api/texts?id=slug  : returns preview for one text
+// POST /api/texts          : email gate, returns full text after email capture
+import { readTexts } from '../../lib/adminData';
 
 // Strip full content for public listing
 function sanitize(t, mode = 'preview') {
@@ -26,7 +18,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'GET') {
-    const texts = readTexts();
+    const texts = await readTexts();
     const { id } = req.query;
     if (id) {
       const t = texts.find(x => x.id === id);
@@ -37,14 +29,14 @@ export default async function handler(req, res) {
     return res.status(200).json(texts.map(t => sanitize(t, mode)));
   }
 
-  // POST — email gate: caller submits { id, email, lang }
+  // POST: email gate, caller submits { id, email, lang }
   // We record the email via newsletter API and return the full text
   if (req.method === 'POST') {
     const { id, email, lang = 'en' } = req.body || {};
     if (!id || !email) return res.status(400).json({ error: 'id and email required' });
     if (!email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
 
-    const texts = readTexts();
+    const texts = await readTexts();
     const t = texts.find(x => x.id === id);
     if (!t) return res.status(404).json({ error: 'Text not found' });
 

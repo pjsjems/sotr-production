@@ -1,4 +1,4 @@
-// pages/api/admin/publish.js — git add/commit/push → Vercel auto-deploy
+// pages/api/admin/publish.js: git add/commit/push, triggers Vercel auto-deploy
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     }
 
     if (!hasChanges) {
-      return res.status(200).json({ success: true, deployed: false, message: 'Nothing to commit — site is already up to date.' });
+      return res.status(200).json({ success: true, deployed: false, message: 'Nothing to commit, site is already up to date.' });
     }
 
     const { stdout: pushOut } = await execAsync('git push', execOptions);

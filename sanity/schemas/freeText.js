@@ -1,5 +1,5 @@
 // sanity/schemas/freeText.js
-// "Texte du mois" — Free Text model
+// "Texte du mois": Free Text model
 // Trilingual (FR / EN / ES), manual entry only
 // Register in sanity.config.js / schemas/index.js
 
@@ -21,7 +21,7 @@ export default {
       options:{ source:'title_fr', maxLength:96 }, validation: R => R.required() },
     { name:'author', title:'Author', type:'string', group:'meta', validation: R => R.required() },
     { name:'coverImage', title:'Cover Image (optional)', type:'image', group:'meta', options:{ hotspot:true } },
-    { name:'is_featured', title:'Featured (Texte du mois — homepage)', type:'boolean', group:'meta',
+    { name:'is_featured', title:'Featured (Texte du mois, homepage)', type:'boolean', group:'meta',
       description:'Only one text should be featured at a time.', initialValue:false },
     { name:'sectionLabel', title:'Section Label Override', type:'string', group:'meta',
       description:'Overrides the global section name. Leave blank to use site default.' },

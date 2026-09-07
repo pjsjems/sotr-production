@@ -74,7 +74,7 @@ export default function TextesPage() {
   return (
     <>
       <Head>
-        <title>{L.section} — SPY ON THE RISE</title>
+        <title>{L.section}: SPY ON THE RISE</title>
         <meta name="description" content={featured ? (featured[`subtitle_${lang}`]||featured.subtitle_en||'') : L.section} />
         <meta name="robots" content="index,follow" />
       </Head>
@@ -111,7 +111,7 @@ export default function TextesPage() {
                 ))}
               </div>
 
-              {/* Email gate — only show if full text not yet revealed */}
+              {/* Email gate: only show if full text not yet revealed */}
               {!fullText && (
                 <div style={{borderTop:'2px solid #7A1515',paddingTop:'2rem',marginTop:'2rem'}}>
                   <div style={{textAlign:'center',marginBottom:'1.25rem'}}>

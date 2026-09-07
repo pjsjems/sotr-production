@@ -814,7 +814,7 @@ function openBook(key){
   </form>
 </div>`
     : '';
-  // Synopsis — language-aware
+  // Synopsis: language-aware
   const _activeLang = document.body.getAttribute('data-lang') || 'en';
   const _synopsis = (_activeLang === 'fr' && b.synopsis_fr) ? b.synopsis_fr
     : (_activeLang === 'es' && b.synopsis_es) ? b.synopsis_es

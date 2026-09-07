@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing id or is_featured' });
 
   if (!process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || !process.env.SANITY_WRITE_TOKEN)
-    return res.status(503).json({ error: 'Sanity not configured — set NEXT_PUBLIC_SANITY_PROJECT_ID and SANITY_WRITE_TOKEN' });
+    return res.status(503).json({ error: 'Sanity not configured, set NEXT_PUBLIC_SANITY_PROJECT_ID and SANITY_WRITE_TOKEN' });
 
   try {
     if (is_featured) {

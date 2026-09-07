@@ -4,7 +4,7 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* UTF-8 charset — MUST be first in head */}
+        {/* UTF-8 charset: MUST be first in head */}
         <meta charSet="utf-8" />
         {/* Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

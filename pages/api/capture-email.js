@@ -33,7 +33,7 @@ function buildEmailHtml({ title, subtitle, authorName, bodyHtml, lang }) {
   <p style="color:#555;margin:0 0 24px">${lbl.greeting}</p>
   <h1 style="font-size:28px;margin:0 0 8px;line-height:1.2">${title}</h1>
   ${subtitle ? `<h2 style="font-size:16px;font-weight:normal;color:#555;margin:0 0 8px;font-style:italic">${subtitle}</h2>` : ''}
-  <p style="font-size:13px;color:#888;margin:0 0 32px">— ${authorName}</p>
+  <p style="font-size:13px;color:#888;margin:0 0 32px">By ${authorName}</p>
   <p style="color:#444;margin:0 0 24px">${lbl.intro}</p>
   <div style="border-left:3px solid #B8860B;padding-left:20px;margin-bottom:40px;line-height:1.8;font-size:15px">${bodyHtml}</div>
   <div style="border-top:1px solid #e5e5e5;margin-top:40px;padding-top:20px">
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
 
   try {
     if (!isSanityConfigured()) {
-      console.log('[capture-email] Sanity not configured — logging only:', { email, slug, lang:safeLang });
+      console.log('[capture-email] Sanity not configured, logging only:', { email, slug, lang:safeLang });
       return res.status(200).json({ ok:true, message:lbl.success });
     }
 
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     const bodyHtml = ptToHtml(full);
 
     if (!RESEND_API_KEY) {
-      console.log('[capture-email] No RESEND_API_KEY — logging email:', { to:email, title, lang:safeLang });
+      console.log('[capture-email] No RESEND_API_KEY, logging email:', { to:email, title, lang:safeLang });
       return res.status(200).json({ ok:true, message:lbl.success });
     }
 

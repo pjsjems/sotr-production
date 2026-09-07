@@ -6,7 +6,7 @@
 // ── LIVE CATALOG ─────────────────────────────────────────
 // Loaded fresh from /api/catalog-live on every page load.
 // Availability toggles from the admin dashboard appear on
-// the live site within 10 seconds — no redeployment needed.
+// the live site within 10 seconds, no redeployment needed.
 let BOOKS = {};
 let SERIES = {};
 let BUNDLES = [];
@@ -477,7 +477,7 @@ function openBundle(id) {
         <span class="fr">&#9889; Offre se termine dans</span>
         <span class="es">&#9889; Oferta termina en</span>
       </div>
-      <div class="bc-countdown" id="bundle-modal-timer" style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--gold);margin-top:4px;">—</div>
+      <div class="bc-countdown" id="bundle-modal-timer" style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--gold);margin-top:4px;">00:00:00</div>
     </div>` : '';
 
   const featPrint = (PLATFORMS.print || []).filter(p => p.feat);

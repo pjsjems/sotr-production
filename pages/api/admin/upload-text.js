@@ -1,0 +1,95 @@
+import { validateSession, parseCookies } from '../../../lib/adminAuth';
+import { readTexts, writeTexts } from '../../../lib/adminData';
+
+export const config = { api: { bodyParser: false } };
+
+export default async function handler(req, res) {
+  const session = validateSession(parseCookies(req)['sotr-admin-session']);
+  if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.method !== 'POST') return res.status(405).end();
+
+  // Parse multipart form manually
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const body = Buffer.concat(chunks);
+  const ct = req.headers['content-type'] || '';
+  const bmatch = ct.match(/boundary=([^\s;]+)/);
+  if (!bmatch) return res.status(400).json({ error: 'No boundary' });
+
+  const boundary = '--' + bmatch[1];
+  const parts = body.toString('binary').split(boundary)
+    .filter(p => p.trim() && p.trim() !== '--');
+
+  let textId = null;
+  let fileName = null;
+  let fileBuffer = null;
+  let mimeType = null;
+
+  for (const part of parts) {
+    const [rawHdr, ...bodyParts] = part.split('\r\n\r\n');
+    const rawBody = bodyParts.join('\r\n\r\n').replace(/\r\n--$/, '');
+    if (rawHdr.includes('name="textId"')) {
+      textId = rawBody.trim();
+    } else if (rawHdr.includes('name="attachment"')) {
+      const fnm = rawHdr.match(/filename="([^"]+)"/);
+      fileName = fnm ? fnm[1] : 'attachment';
+      const mm = rawHdr.match(/Content-Type:\s*([^\r\n]+)/i);
+      mimeType = mm ? mm[1].trim() : 'application/octet-stream';
+      fileBuffer = Buffer.from(rawBody, 'binary');
+    }
+  }
+
+  if (!textId || !fileBuffer) {
+    return res.status(400).json({ error: 'textId and attachment required' });
+  }
+
+  // Store file in KV as base64 (max 5MB)
+  if (fileBuffer.length > 5 * 1024 * 1024) {
+    return res.status(400).json({ error: 'File too large. Maximum 5MB.' });
+  }
+
+  const kvUrl   = process.env.KV_REST_API_URL;
+  const kvToken = process.env.KV_REST_API_TOKEN;
+
+  if (kvUrl && kvToken) {
+    try {
+      const fileKey = `sotr:text-attachment:${textId}`;
+      const payload = {
+        fileName,
+        mimeType,
+        data: fileBuffer.toString('base64'),
+        uploadedAt: new Date().toISOString(),
+      };
+      await fetch(`${kvUrl}/set/${fileKey}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${kvToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value: JSON.stringify(payload) }),
+      });
+
+      // Update the text record with attachment info
+      const texts = await readTexts();
+      const idx = texts.findIndex(t => t.id === textId);
+      if (idx >= 0) {
+        texts[idx].attachmentName = fileName;
+        texts[idx].attachmentMime = mimeType;
+        texts[idx].hasAttachment = true;
+        await writeTexts(texts);
+      }
+
+      return res.status(200).json({
+        success: true,
+        fileName,
+        downloadUrl: `/api/texts/download?id=${textId}`,
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  return res.status(500).json({
+    error: 'File storage not configured. Set KV_REST_API_URL and KV_REST_API_TOKEN.'
+  });
+}

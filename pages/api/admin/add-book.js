@@ -1,4 +1,4 @@
-// pages/api/admin/add-book.js — append a new book entry to the catalog
+// pages/api/admin/add-book.js: append a new book entry to the catalog
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import { addBook, generateBookKey, parseCatalog } from '../../../lib/adminData';
 

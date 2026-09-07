@@ -1,4 +1,4 @@
-// pages/api/admin/config.js — read/write site config (forwarding email, etc.)
+// pages/api/admin/config.js: read/write site config (forwarding email, etc.)
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import fs from 'fs';
 import path from 'path';

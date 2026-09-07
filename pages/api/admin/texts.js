@@ -1,67 +1,44 @@
-// pages/api/admin/texts.js — CRUD for texts.json (admin only)
+// pages/api/admin/texts.js: CRUD for texts (admin only), stored via KV/file
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
-import fs from 'fs';
-import path from 'path';
+import { readTexts, writeTexts } from '../../../lib/adminData';
 
-const TEXTS_PATH = path.join(process.cwd(), 'data', 'texts.json');
-
-function read() {
-  try { return JSON.parse(fs.readFileSync(TEXTS_PATH, 'utf8')); }
-  catch { return []; }
-}
-function write(data) {
-  fs.writeFileSync(TEXTS_PATH, JSON.stringify(data, null, 2), 'utf8');
-}
-
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const session = validateSession(parseCookies(req)['sotr-admin-session']);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
-  // GET — list all
   if (req.method === 'GET') {
-    return res.status(200).json({ texts: read() });
+    const texts = await readTexts();
+    return res.status(200).json({ texts });
   }
 
-  // POST — create or update
   if (req.method === 'POST') {
-    const { action, text } = req.body || {};
+    const { action, text, id } = req.body || {};
+    const texts = await readTexts();
 
     if (action === 'save') {
-      if (!text?.id || !text?.title_en) return res.status(400).json({ error: 'id and title_en required' });
-      try {
-        const texts = read();
-        const idx = texts.findIndex(t => t.id === text.id);
-        if (idx >= 0) texts[idx] = { ...texts[idx], ...text };
-        else texts.unshift({ publishedAt: new Date().toISOString().slice(0,10), featured: false, ...text });
-        // When featured is checked, clear featured flag on all other texts
-        if (text.featured) texts.forEach(t => { if (t.id !== text.id) t.featured = false; });
-        write(texts);
-        return res.status(200).json({ success: true });
-      } catch(e) {
-        return res.status(500).json({ error: 'Failed to save: ' + (e.message || 'unknown error') });
-      }
+      if (!text?.id || !text?.title_en)
+        return res.status(400).json({ error: 'id and title_en required' });
+      const idx = texts.findIndex(t => t.id === text.id);
+      if (idx >= 0) texts[idx] = { ...texts[idx], ...text };
+      else texts.unshift({
+        publishedAt: new Date().toISOString().slice(0, 10),
+        featured: false,
+        ...text,
+      });
+      if (text.featured) texts.forEach(t => { if (t.id !== text.id) t.featured = false; });
+      await writeTexts(texts);
+      return res.status(200).json({ success: true });
     }
 
     if (action === 'feature') {
-      const { id } = req.body;
-      try {
-        const texts = read();
-        texts.forEach(t => { t.featured = t.id === id; });
-        write(texts);
-        return res.status(200).json({ success: true });
-      } catch(e) {
-        return res.status(500).json({ error: 'Failed to feature: ' + (e.message || 'unknown error') });
-      }
+      texts.forEach(t => { t.featured = (t.id === id); });
+      await writeTexts(texts);
+      return res.status(200).json({ success: true });
     }
 
     if (action === 'delete') {
-      const { id } = req.body;
-      try {
-        write(read().filter(t => t.id !== id));
-        return res.status(200).json({ success: true });
-      } catch(e) {
-        return res.status(500).json({ error: 'Failed to delete: ' + (e.message || 'unknown error') });
-      }
+      await writeTexts(texts.filter(t => t.id !== id));
+      return res.status(200).json({ success: true });
     }
 
     return res.status(400).json({ error: 'Unknown action' });

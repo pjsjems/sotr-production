@@ -1,4 +1,4 @@
-// pages/api/contact.js — saves messages to data/messages.json
+// pages/api/contact.js: saves messages to data/messages.json
 import fs from 'fs';
 import path from 'path';
 

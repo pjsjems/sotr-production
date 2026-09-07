@@ -1,4 +1,4 @@
-// pages/api/admin/messages.js — contact messages + prelaunch notification requests
+// pages/api/admin/messages.js: contact messages + prelaunch notification requests
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import fs from 'fs';
 import path from 'path';
@@ -18,7 +18,7 @@ function writeJSON(filePath, data) {
 }
 
 export default function handler(req, res) {
-  // Public POST — save notification signup (no auth, called from newsletter API)
+  // Public POST: save notification signup (no auth, called from newsletter API)
   if (req.method === 'POST' && !parseCookies(req)['sotr-admin-session']) {
     const { email, bookKey, bookTitle, lang = 'en', type = 'general' } = req.body || {};
     if (!email) return res.status(400).json({ error: 'Email required' });

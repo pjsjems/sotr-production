@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// pages/admin/index.js — SPY ON THE RISE Admin Dashboard
+// pages/admin/index.js: SPY ON THE RISE Admin Dashboard
 // Full CRUD catalog management, analytics, backups, settings.
 // Protected by cookie-based session auth.
 // ════════════════════════════════════════════════════════════
@@ -60,7 +60,7 @@ function BundleAdmin({ toast, books = [] }) {
     setBundleForm(f => ({
       ...f,
       disc: `$${(orig - discAmt).toFixed(2)}`,
-      save: `${rate}% Off — Save $${discAmt.toFixed(2)}`,
+      save: `${rate}% Off. Save $${discAmt.toFixed(2)}`,
     }));
   }
 
@@ -109,7 +109,7 @@ function BundleAdmin({ toast, books = [] }) {
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-        <span style={{fontSize:13,color:'var(--tx3)'}}>{bundles ? bundles.length : '—'} bundle offers</span>
+        <span style={{fontSize:13,color:'var(--tx3)'}}>{bundles ? bundles.length : 'N/A'} bundle offers</span>
         <button className="btn btn-p" onClick={openNew}>+ New Bundle</button>
       </div>
 
@@ -252,7 +252,7 @@ function BundleAdmin({ toast, books = [] }) {
                   </div>
                   <div className="field-row" style={{marginBottom:0}}>
                     <label className="field-label">Savings Label</label>
-                    <input className="field-input" value={bundleForm.save||''} onChange={e=>setBundleForm(f=>({...f,save:e.target.value}))} placeholder="35% Off — Save $36.73" />
+                    <input className="field-input" value={bundleForm.save||''} onChange={e=>setBundleForm(f=>({...f,save:e.target.value}))} placeholder="35% Off. Save $36.73" />
                   </div>
                 </div>
               </div>
@@ -306,6 +306,220 @@ function BundleAdmin({ toast, books = [] }) {
   );
 }
 
+// ── Platform Management Component ──────────────────────────
+function PlatformsAdmin({ toast }) {
+  const [platforms, setPlatforms] = useState(null);
+  const [newPlatform, setNewPlatform] = useState({ name:'', abbr:'', color:'#333333', note:'', type:'print' });
+  const [platformSaving, setPlatformSaving] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/admin/catalog')
+      .then(r => r.json())
+      .then(d => setPlatforms(d.platforms || {}))
+      .catch(() => setPlatforms({}));
+  }, []);
+
+  async function addPlatformEntry() {
+    if (!newPlatform.name || !newPlatform.abbr) {
+      toast('Name and abbreviation are required', 'error');
+      return;
+    }
+    setPlatformSaving(true);
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add-platform',
+          platform: {
+            name: newPlatform.name,
+            abbr: newPlatform.abbr.slice(0, 3).toUpperCase(),
+            color: newPlatform.color,
+            note: newPlatform.note,
+            key: newPlatform.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+            url: '#',
+          },
+          platformType: newPlatform.type,
+        }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast(`Platform "${newPlatform.name}" added`, 'success');
+        setNewPlatform({ name:'', abbr:'', color:'#333333', note:'', type:'print' });
+        const r2 = await fetch('/api/admin/catalog');
+        const d2 = await r2.json();
+        setPlatforms(d2.platforms || {});
+      } else toast(d.error, 'error');
+    } catch { toast('Failed to add platform', 'error'); }
+    setPlatformSaving(false);
+  }
+
+  const allPlatforms = platforms
+    ? Object.entries(platforms).flatMap(([type, list]) =>
+        (list || []).map(p => ({ ...p, type })))
+    : [];
+
+  return (
+    <div>
+      <div className="panel" style={{ marginBottom:'1.25rem' }}>
+        <div className="panel-head"><span className="panel-title">Current Platforms</span></div>
+        {!platforms ? (
+          <div className="loading-row"><span className="spinner"/> Loading...</div>
+        ) : allPlatforms.length === 0 ? (
+          <div className="panel-body" style={{ textAlign:'center', color:'var(--tx3)' }}>No platforms configured.</div>
+        ) : (
+          <div className="panel-body" style={{ padding:0 }}>
+            <table className="tbl">
+              <thead><tr><th>Platform</th><th>Type</th><th>Note</th><th>Color</th></tr></thead>
+              <tbody>
+                {allPlatforms.map((p, i) => (
+                  <tr key={i}>
+                    <td>
+                      <span style={{ background:p.color, color:'#fff', fontWeight:700, fontSize:10, padding:'2px 7px', borderRadius:3, marginRight:8 }}>{p.abbr}</span>
+                      <span style={{ fontWeight:500, color:'var(--tx)' }}>{p.name}</span>
+                    </td>
+                    <td><span className="badge badge-series">{p.type}</span></td>
+                    <td style={{ fontSize:12, color:'var(--tx3)' }}>{p.note}</td>
+                    <td><span style={{ display:'inline-block', width:18, height:18, borderRadius:3, background:p.color, border:'1px solid var(--border)' }}/></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <div className="panel-head"><span className="panel-title">Add New Platform</span></div>
+        <div className="panel-body">
+          <div className="two-col">
+            <div className="field-row">
+              <label className="field-label">Platform Name</label>
+              <input className="field-input" value={newPlatform.name} onChange={e => setNewPlatform(f => ({...f, name:e.target.value}))} placeholder="e.g. Payhip" />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Abbreviation (3 letters)</label>
+              <input className="field-input" value={newPlatform.abbr} onChange={e => setNewPlatform(f => ({...f, abbr:e.target.value.toUpperCase().slice(0,3)}))} placeholder="PAY" style={{ fontFamily:'monospace' }} />
+            </div>
+          </div>
+          <div className="two-col">
+            <div className="field-row">
+              <label className="field-label">Type</label>
+              <select className="field-input field-select" value={newPlatform.type} onChange={e => setNewPlatform(f => ({...f, type:e.target.value}))}>
+                <option value="print">Print</option>
+                <option value="ebook">eBook</option>
+                <option value="audio">Audio</option>
+              </select>
+            </div>
+            <div className="field-row">
+              <label className="field-label">Brand Color</label>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input type="color" value={newPlatform.color} onChange={e => setNewPlatform(f => ({...f, color:e.target.value}))} style={{ width:38, height:32, border:'1px solid var(--border)', borderRadius:4, cursor:'pointer', background:'none' }} />
+                <input className="field-input" value={newPlatform.color} onChange={e => setNewPlatform(f => ({...f, color:e.target.value}))} style={{ fontFamily:'monospace', fontSize:12 }} />
+              </div>
+            </div>
+          </div>
+          <div className="field-row">
+            <label className="field-label">Short Description</label>
+            <input className="field-input" value={newPlatform.note} onChange={e => setNewPlatform(f => ({...f, note:e.target.value}))} placeholder="e.g. Digital downloads direct" />
+          </div>
+          <button className="btn btn-p" onClick={addPlatformEntry} disabled={platformSaving}>
+            {platformSaving ? <><span className="spinner"/> Adding...</> : 'Add Platform'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Series Management Component ────────────────────────────
+function SeriesAdmin({ data, toast, loadCatalog }) {
+  const [editSeries, setEditSeries] = useState(null);
+  const [seriesForm, setSeriesForm] = useState({});
+  const [seriesSaving, setSeriesSaving] = useState(false);
+
+  const seriesList = data?.series || null;
+
+  async function saveSeries() {
+    setSeriesSaving(true);
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-series', series: seriesForm }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast('Series updated', 'success');
+        setEditSeries(null);
+        await loadCatalog();
+      } else toast(d.error, 'error');
+    } catch { toast('Failed to save series', 'error'); }
+    setSeriesSaving(false);
+  }
+
+  return (
+    <div>
+      {!seriesList ? (
+        <div className="loading-row"><span className="spinner"/> Loading...</div>
+      ) : (
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">All Series</span></div>
+          {seriesList.map(s => (
+            <div key={s.key} style={{ display:'flex', alignItems:'center', gap:12, padding:'.85rem 1rem', borderTop:'1px solid var(--border)', cursor:'pointer' }}
+              onClick={() => { setEditSeries(s); setSeriesForm({ key:s.key, name:s.name, tag:s.tag }); }}>
+              <span style={{ fontSize:16 }}>📖</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--tx)' }}>{s.name}</div>
+                <div style={{ fontSize:11, color:'var(--tx3)' }}>{s.tag} · {s.total} titles · {s.available} live · {s.locked} locked</div>
+              </div>
+              <span style={{ fontSize:12, color:'var(--crb)' }}>Edit →</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editSeries && (
+        <div className="modal-ov open" onClick={e => e.target.className.includes('modal-ov') && setEditSeries(null)}>
+          <div className="modal-box">
+            <div className="modal-head">
+              <span className="modal-title">Edit Series: {editSeries.name}</span>
+              <button className="modal-cls" onClick={() => setEditSeries(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="field-row">
+                <label className="field-label">Series Name</label>
+                <input className="field-input" value={seriesForm.name || ''} onChange={e => setSeriesForm(f => ({...f, name:e.target.value}))} />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Genre Tag</label>
+                <input className="field-input" value={seriesForm.tag || ''} onChange={e => setSeriesForm(f => ({...f, tag:e.target.value}))} />
+              </div>
+              <div className="panel" style={{ marginTop:'.75rem' }}>
+                <div className="panel-head"><span className="panel-title">Books in this series</span></div>
+                <div className="panel-body" style={{ padding:'.5rem 0' }}>
+                  {data && data.books.filter(b => b.seriesKey === editSeries.key).map(b => (
+                    <div key={b.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'.5rem 1rem', borderTop:'1px solid var(--border)' }}>
+                      <span style={{ fontSize:12, color:'var(--tx2)' }}>{b.title}</span>
+                      <span className={`badge ${b.available ? 'badge-avail' : 'badge-locked'}`}>{b.available ? 'Live' : 'Locked'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-s" onClick={() => setEditSeries(null)}>Cancel</button>
+              <button className="btn btn-p" onClick={saveSeries} disabled={seriesSaving}>
+                {seriesSaving ? <><span className="spinner"/> Saving...</> : 'Save Series'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Publish to Live Site ───────────────────────────────────
 function PublishButton({ addToast }) {
   const [publishing, setPublishing] = useState(false);
@@ -333,7 +547,7 @@ function PublishButton({ addToast }) {
       if (d.success) addToast(d.deployed ? '▲ Published to live site' : '✓ Saved locally', 'success');
       else addToast(d.message, 'error');
     } catch {
-      addToast('Publish failed — push manually with git push', 'error');
+      addToast('Publish failed: push manually with git push', 'error');
     }
     setPublishing(false);
     setCommitMsg('');
@@ -342,7 +556,7 @@ function PublishButton({ addToast }) {
   return (
     <div style={{position:'relative'}}>
       <button className="btn btn-p" onClick={() => setShowForm(f => !f)} disabled={publishing}
-        title="Commit & push to GitHub — Vercel auto-deploys">
+        title="Commit & push to GitHub: Vercel auto-deploys">
         {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Publish to Live'}
       </button>
       {showForm && (
@@ -590,8 +804,8 @@ function SiteLockPanel({ siteLocked, setSiteLocked, toast }) {
         setSiteLocked(d.locked);
         toast(
           d.locked
-            ? 'Website locked — visitors see the Coming Soon screen'
-            : 'Website unlocked — full site is visible to all visitors',
+            ? 'Website locked: visitors see the Coming Soon screen'
+            : 'Website unlocked: full site is visible to all visitors',
           d.locked ? 'warning' : 'success'
         );
       } else {
@@ -638,7 +852,7 @@ function SiteLockPanel({ siteLocked, setSiteLocked, toast }) {
               disabled={toggling || siteLocked === null}>
               {toggling
                 ? <><span className="spinner"/> Updating…</>
-                : isLocked ? '🌐 Unlock — Go Live' : '🔒 Lock — Coming Soon'}
+                : isLocked ? '🌐 Unlock: Go Live' : '🔒 Lock: Coming Soon'}
             </button>
           </div>
         </div>
@@ -651,9 +865,9 @@ function SiteLockPanel({ siteLocked, setSiteLocked, toast }) {
             Visitors to spyontherise.com see a branded Coming Soon screen with no
             access to the catalog, books, or any site content.<br/><br/>
             <strong style={{ color:'var(--tx)' }}>Full site still accessible via:</strong><br/>
-            sotr-production.vercel.app — always open<br/>
-            spyontherise.com/?preview=sotr2026 — bypass on main domain<br/>
-            localhost:3000 — always open in development
+            sotr-production.vercel.app: always open<br/>
+            spyontherise.com/?preview=sotr2026: bypass on main domain<br/>
+            localhost:3000: always open in development
           </div>
         </div>
         <div className="panel">
@@ -662,7 +876,7 @@ function SiteLockPanel({ siteLocked, setSiteLocked, toast }) {
             All visitors see the full site with the complete catalog,
             book cards, series pages, bundles, and all features.<br/><br/>
             <strong style={{ color:'var(--tx)' }}>The admin dashboard is always accessible</strong>
-            {' '}regardless of lock status — the lock only affects public pages.
+            {' '}regardless of lock status, the lock only affects public pages.
           </div>
         </div>
       </div>
@@ -825,7 +1039,7 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
-        toast(`${key} → ${currentState ? 'locked' : 'unlocked'} — live in ~10s`, 'success');
+        toast(`${key} → ${currentState ? 'locked' : 'unlocked'}, live in ~10s`, 'success');
         await loadCatalog();
       } else toast(d.error, 'error');
     } catch { toast('Failed to toggle availability', 'error'); }
@@ -843,7 +1057,7 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
-        toast('Book updated — live in ~10s', 'success');
+        toast('Book updated, live in ~10s', 'success');
         setEditBook(null);
         await loadCatalog();
       } else toast(d.error, 'error');
@@ -863,7 +1077,7 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
-        toast('Synopsis saved — live in ~10s', 'success');
+        toast('Synopsis saved, live in ~10s', 'success');
         setSynopsisBook(null);
         await loadCatalog();
       } else toast(d.error, 'error');
@@ -944,7 +1158,7 @@ export default function AdminDashboard() {
 
   if (auth === false) return (
     <>
-      <Head><title>Admin Login — SPY ON THE RISE</title></Head>
+      <Head><title>Admin Login: SPY ON THE RISE</title></Head>
       <style>{ADMIN_CSS}</style>
       <div className="login-page">
         <div className="login-box">
@@ -1068,7 +1282,7 @@ export default function AdminDashboard() {
         <div className="panel">
           <div className="panel-head"><span className="panel-title">Catalog Last Modified</span></div>
           <div className="panel-body">
-            <span style={{ fontSize:13, color:'var(--tx3)' }}>{stats.lastModified ? new Date(stats.lastModified).toLocaleString() : '—'}</span>
+            <span style={{ fontSize:13, color:'var(--tx3)' }}>{stats.lastModified ? new Date(stats.lastModified).toLocaleString() : 'N/A'}</span>
           </div>
         </div>
       </div>
@@ -1161,7 +1375,7 @@ export default function AdminDashboard() {
                     <div style={{ fontWeight:500, color:'var(--tx)', marginBottom:1 }}>{b.title}</div>
                     {b.subtitle && <div style={{ fontSize:11, color:'var(--tx3)' }}>{b.subtitle}</div>}
                   </td>
-                  <td><span className="badge badge-series" style={{ fontSize:10 }}>{b.series?.replace('Anatomy of Micro-Societies','AMS').replace('The Mercer Files','Mercer').replace('The Crooked Cross Chronicles','CCC') || '—'}</span></td>
+                  <td><span className="badge badge-series" style={{ fontSize:10 }}>{b.series?.replace('Anatomy of Micro-Societies','AMS').replace('The Mercer Files','Mercer').replace('The Crooked Cross Chronicles','CCC') || 'N/A'}</span></td>
                   <td><span className="badge badge-genre">{b.genre}</span></td>
                   <td>
                     <button className="avail-toggle" onClick={() => toggleAvail(b.key, b.available)}>
@@ -1280,10 +1494,10 @@ export default function AdminDashboard() {
           <div className="panel-head"><span className="panel-title">Catalog Backups</span></div>
           <div className="panel-body">
             <p style={{ fontSize:13, color:'var(--tx2)', marginBottom:'1rem', lineHeight:1.6 }}>
-              A backup is created automatically before every save operation. You can restore any backup — the current catalog is backed up first before restoring. Keep the last 20 backups maximum.
+              A backup is created automatically before every save operation. You can restore any backup: the current catalog is backed up first before restoring. Keep the last 20 backups maximum.
             </p>
             {backups.length === 0 ? (
-              <div className="empty-state"><div className="empty-icon">💾</div><div className="empty-msg">No backups yet — they are created automatically on first save.</div></div>
+              <div className="empty-state"><div className="empty-icon">💾</div><div className="empty-msg">No backups yet: they are created automatically on first save.</div></div>
             ) : (
               <table className="tbl">
                 <thead><tr><th>Backup File</th><th>Date</th><th>Size</th><th>Action</th></tr></thead>
@@ -1423,23 +1637,23 @@ export default function AdminDashboard() {
     const FIELDS = {
       en: [
         ['title_en','Title (EN)'],
-        ['subtitle_en','Subtitle (EN) — optional'],
-        ['description_en','One-line description (EN) — shown in archive'],
-        ['preview_en','Preview — first ~25% of text (EN)'],
+        ['subtitle_en','Subtitle (EN): optional'],
+        ['description_en','One-line description (EN): shown in archive'],
+        ['preview_en','Preview: first ~25% of text (EN)'],
         ['full_en','Full text (EN)'],
       ],
       fr: [
         ['title_fr','Titre (FR)'],
-        ['subtitle_fr','Sous-titre (FR) — optionnel'],
-        ['description_fr',"Description d'une ligne (FR) — affichée dans l'archive"],
-        ['preview_fr','Extrait — premiers ~25% du texte (FR)'],
+        ['subtitle_fr','Sous-titre (FR): optionnel'],
+        ['description_fr',"Description d'une ligne (FR): affichée dans l'archive"],
+        ['preview_fr','Extrait: premiers ~25% du texte (FR)'],
         ['full_fr','Texte complet (FR)'],
       ],
       es: [
         ['title_es','Título (ES)'],
-        ['subtitle_es','Subtítulo (ES) — opcional'],
-        ['description_es','Descripción de una línea (ES) — mostrada en el archivo'],
-        ['preview_es','Extracto — primeros ~25% del texto (ES)'],
+        ['subtitle_es','Subtítulo (ES): opcional'],
+        ['description_es','Descripción de una línea (ES): mostrada en el archivo'],
+        ['preview_es','Extracto: primeros ~25% del texto (ES)'],
         ['full_es','Texto completo (ES)'],
       ],
     };
@@ -1499,6 +1713,106 @@ export default function AdminDashboard() {
                     <input className="field-input" type="date" value={textForm.publishedAt||''} onChange={e=>setTextForm(f=>({...f,publishedAt:e.target.value}))}/>
                   </div>
                 </div>
+                {/* Category field */}
+                <div className="field-row">
+                  <label className="field-label">Category</label>
+                  {textForm.category === '__new__' ? (
+                    <div style={{ display:'flex', gap:8 }}>
+                      <input className="field-input"
+                        placeholder="Type new category name..."
+                        value={textForm.customCategory || ''}
+                        onChange={e => setTextForm(f => ({
+                          ...f, customCategory: e.target.value
+                        }))}
+                      />
+                      <button className="btn btn-s btn-sm"
+                        onClick={() => setTextForm(f => ({
+                          ...f,
+                          category: f.customCategory || '',
+                          customCategory: '',
+                        }))}>
+                        Set
+                      </button>
+                      <button className="btn btn-s btn-sm"
+                        onClick={() => setTextForm(f => ({
+                          ...f, category: '', customCategory: ''
+                        }))}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <select className="field-input field-select"
+                      value={textForm.category || ''}
+                      onChange={e => setTextForm(f => ({
+                        ...f, category: e.target.value
+                      }))}>
+                      <option value="">Select a category...</option>
+                      <option value="Geopolitics">Geopolitics</option>
+                      <option value="Social Issues">Social Issues</option>
+                      <option value="Human Psychology">Human Psychology</option>
+                      <option value="Technology and AI">Technology and AI</option>
+                      <option value="Philosophy and Meaning">Philosophy and Meaning</option>
+                      <option value="Power and Influence">Power and Influence</option>
+                      <option value="Culture and Identity">Culture and Identity</option>
+                      <option value="Economics and Global Trends">Economics and Global Trends</option>
+                      <option value="Modern Relationships">Modern Relationships</option>
+                      <option value="__new__">+ Add New Category</option>
+                    </select>
+                  )}
+                </div>
+                {/* Attachment upload */}
+                <div className="field-row">
+                  <label className="field-label">Attachment (PDF or Word, max 5MB)</label>
+                  <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                    {textForm.hasAttachment && (
+                      <a href={`/api/texts/download?id=${textForm.id}`}
+                        target="_blank" rel="noopener"
+                        className="btn btn-s btn-sm">
+                        Download: {textForm.attachmentName || 'File'}
+                      </a>
+                    )}
+                    <input type="file" accept=".pdf,.doc,.docx"
+                      id="text-attachment-input"
+                      style={{ display:'none' }}
+                      onChange={async e => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        if (!textForm.id) {
+                          toast('Save the text first, then upload the attachment.', 'warning');
+                          return;
+                        }
+                        const fd = new FormData();
+                        fd.append('textId', textForm.id);
+                        fd.append('attachment', file);
+                        toast('Uploading attachment...', 'warning');
+                        try {
+                          const r = await fetch('/api/admin/upload-text', {
+                            method: 'POST', body: fd,
+                          });
+                          const d = await r.json();
+                          if (d.success) {
+                            toast(`Uploaded: ${d.fileName}`, 'success');
+                            setTextForm(f => ({
+                              ...f,
+                              hasAttachment: true,
+                              attachmentName: d.fileName,
+                            }));
+                          } else toast(d.error, 'error');
+                        } catch {
+                          toast('Upload failed', 'error');
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                    <button className="btn btn-s btn-sm"
+                      onClick={() => document.getElementById('text-attachment-input').click()}>
+                      {textForm.hasAttachment ? 'Replace File' : 'Upload PDF or Word'}
+                    </button>
+                  </div>
+                  <div className="field-hint">
+                    Save the text first before uploading an attachment.
+                  </div>
+                </div>
                 {/* Language tabs */}
                 <div className="tabs" style={{marginBottom:'1rem'}}>
                   {Object.entries(LANG_LABELS).map(([l,label])=>(
@@ -1514,7 +1828,7 @@ export default function AdminDashboard() {
                           placeholder={field.startsWith('preview') ? 'Paste the first ~25% of the text here' : 'Paste the complete text here'}/>
                       : <input className="field-input" value={textForm[field]||''} onChange={e=>setTextForm(f=>({...f,[field]:e.target.value}))}/>
                     }
-                    {field.startsWith('preview') && <div className="field-hint">{(textForm[field]||'').length} chars — aim for 400-800 chars</div>}
+                    {field.startsWith('preview') && <div className="field-hint">{(textForm[field]||'').length} chars, aim for 400-800 chars</div>}
                     {field.startsWith('full') && <div className="field-hint">{(textForm[field]||'').length} chars total</div>}
                   </div>
                 ))}
@@ -1538,6 +1852,8 @@ export default function AdminDashboard() {
 
   const sections = {
     sitelock: { label:'Site Lock', icon:'🔒', render: () => <SiteLockPanel siteLocked={siteLocked} setSiteLocked={setSiteLocked} toast={toast} /> },
+    platforms: { label:'Platforms', icon:'🛒', render: () => <PlatformsAdmin toast={toast} /> },
+    series: { label:'Series', icon:'📖', render: () => <SeriesAdmin data={data} toast={toast} loadCatalog={loadCatalog} /> },
     dashboard: { label:'Dashboard', icon:'⬡', render: renderDashboard },
     catalog: { label:'Catalog', icon:'📚', render: renderCatalog },
     availability: { label:'Availability', icon:'🔓', render: renderAvailability },
@@ -1554,7 +1870,7 @@ export default function AdminDashboard() {
   return (
     <>
       <Head>
-        <title>Admin — SPY ON THE RISE</title>
+        <title>Admin: SPY ON THE RISE</title>
         <meta name="robots" content="noindex,nofollow" />
       </Head>
       <style>{ADMIN_CSS}</style>
@@ -1625,7 +1941,7 @@ export default function AdminDashboard() {
                     const d = await r.json();
                     if (d.success) {
                       setSiteLocked(d.locked);
-                      toast(d.locked ? '🔒 Site locked — Coming Soon visible' : '🌐 Site unlocked — fully live', d.locked ? 'warning' : 'success');
+                      toast(d.locked ? '🔒 Site locked: Coming Soon visible' : '🌐 Site unlocked: fully live', d.locked ? 'warning' : 'success');
                     }
                   } catch { toast('Lock toggle failed', 'error'); }
                   setLockToggling(false);
@@ -1809,7 +2125,7 @@ export default function AdminDashboard() {
                         } catch { toast('Upload failed', 'error'); }
                       }} />
                     {synopsisBook?.image && <div style={{fontSize:11,color:'var(--tx3)',fontFamily:'monospace'}}>{synopsisBook.image}</div>}
-                    {!synopsisBook?.image && <div style={{fontSize:12,color:'var(--tx3)'}}>No cover image yet — click thumbnail to upload.</div>}
+                    {!synopsisBook?.image && <div style={{fontSize:12,color:'var(--tx3)'}}>No cover image yet: click thumbnail to upload.</div>}
                   </div>
                 </div>
               </div>
@@ -1822,7 +2138,7 @@ export default function AdminDashboard() {
                 <>
                   <div className="field-row">
                     <label className="field-label">
-                      {activeTab==='en'?'English Synopsis':activeTab==='fr'?'French Synopsis (FR edition only — no EN in FR text)':'Spanish Synopsis (ES edition only — no EN in ES text)'}
+                      {activeTab==='en'?'English Synopsis':activeTab==='fr'?'French Synopsis (FR edition only, no EN in FR text)':'Spanish Synopsis (ES edition only, no EN in ES text)'}
                     </label>
                     <textarea className="field-input field-textarea" style={{ minHeight:200 }}
                       value={synopsisForm[activeTab]||''} onChange={e => setSynopsisForm(f => ({...f,[activeTab]:e.target.value}))}
@@ -1875,7 +2191,7 @@ export default function AdminDashboard() {
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Title <span style={{color:'var(--crb)'}}>*</span></label>
-                  <input className="field-input" value={addForm.title||''} onChange={e=>setAddForm(f=>({...f,title:e.target.value}))} placeholder="e.g. The Mercer Files — Book 8" autoFocus />
+                  <input className="field-input" value={addForm.title||''} onChange={e=>setAddForm(f=>({...f,title:e.target.value}))} placeholder="e.g. The Mercer Files: Book 8" autoFocus />
                 </div>
                 <div className="field-row">
                   <label className="field-label">Subtitle</label>
