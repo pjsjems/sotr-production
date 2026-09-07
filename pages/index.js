@@ -44,6 +44,8 @@ export default function Home({ initialSiteLocked = false }) {
             envComingSoonMode: COMING_SOON_MODE ? 'true' : 'false',
           });
           setSiteLocked(locked);
+          renderFooterSocials(data?.config?.socialLinks);
+          renderFooterTagline(data?.config?.footerTagline);
 
           const el = document.getElementById('coming-soon-overlay');
           if (!el) return;
@@ -90,6 +92,30 @@ export default function Home({ initialSiteLocked = false }) {
         <a href="/textes" class="tom-link fr">Lire le texte →</a>
         <a href="/textes" class="tom-link es">Leer el texto →</a>`;
       el.style.display = 'block';
+    }
+
+    // ── Footer social links + tagline: driven by admin-managed config ──
+    function renderFooterSocials(social) {
+      const el = document.getElementById('fg-socials');
+      if (!el) return;
+      const PLATFORMS = [
+        ['instagram', 'IG'], ['x', 'X'], ['linkedin', 'LI'],
+        ['facebook', 'FB'], ['youtube', 'YT'], ['tiktok', 'TT'],
+      ];
+      el.innerHTML = PLATFORMS.map(([key, label]) => {
+        const url = (social && social[key]) || '';
+        if (!url) return `<a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">${label}</a>`;
+        return `<a class="fg-soc" href="${url}" target="_blank" rel="noopener">${label}</a>`;
+      }).join('');
+    }
+
+    function renderFooterTagline(tagline) {
+      if (!tagline) return;
+      const map = { en: 'fg-tagline-en', fr: 'fg-tagline-fr', es: 'fg-tagline-es' };
+      Object.entries(map).forEach(([lang, id]) => {
+        const el = document.getElementById(id);
+        if (el && tagline[lang]) el.textContent = tagline[lang];
+      });
     }
 
     // ── FIX: Patch setLang to update real body + persist choice ────────
@@ -358,7 +384,7 @@ const SITE_HTML = `<!-- TOPBAR -->
 </div>
 
 <!-- FOOTER -->
-<footer id="main-footer"><div class="wrap"><div class="fg-grid"><div><div class="fg-brand">SPY ON THE RISE</div><div class="fg-sub en">Independent Publishing House</div><div class="fg-sub fr">Maison d'Édition Indépendante</div><div class="fg-sub es">Editorial Independiente</div><p class="fg-tagline en">Publishing work that refuses easy categories. Bilingual. Independent. Uncompromising.</p><p class="fg-tagline fr">Publier des œuvres qui refusent les catégories faciles. Bilingue. Indépendant. Sans compromis.</p><p class="fg-tagline es">Publicando obras que rechazan las categorías fáciles. Bilingüe. Independiente. Sin compromisos.</p><div class="fg-socials"><a class="fg-soc" href="#">IG</a><a class="fg-soc" href="#">X</a><a class="fg-soc" href="#">LI</a><a class="fg-soc" href="#">FB</a></div></div><div class="fg-col"><div class="fg-col-title en">Catalog</div><div class="fg-col-title fr">Catalogue</div><div class="fg-col-title es">Catálogo</div><ul id="footer-catalog-links"></ul></div><div class="fg-col"><div class="fg-col-title en">Publishing House</div><div class="fg-col-title fr">La Maison</div><div class="fg-col-title es">La Editorial</div><ul><li><a onclick="goAbout()" class="en">About Us</a><a onclick="goAbout()" class="fr">À Propos</a><a onclick="goAbout()" class="es">Acerca de</a></li><li><a href="mailto:press@spyontherise.com" class="en">Press &amp; Media</a><a href="mailto:press@spyontherise.com" class="fr">Presse &amp; Médias</a><a href="mailto:press@spyontherise.com" class="es">Prensa</a></li><li><a href="mailto:rights@spyontherise.com" class="en">Rights &amp; Licensing</a><a href="mailto:rights@spyontherise.com" class="fr">Droits &amp; Licences</a><a href="mailto:rights@spyontherise.com" class="es">Derechos</a></li><li><a onclick="showPage('bundles')" class="en">Bundles &amp; Deals</a><a onclick="showPage('bundles')" class="fr">Lots &amp; Offres</a><a onclick="showPage('bundles')" class="es">Paquetes</a></li><li><a href="mailto:contact@spyontherise.com" class="en">Contact</a><a href="mailto:contact@spyontherise.com" class="fr">Contact</a><a href="mailto:contact@spyontherise.com" class="es">Contacto</a></li></ul></div><div class="fg-col"><div class="fg-col-title en">Buy Books On</div><div class="fg-col-title fr">Acheter Sur</div><div class="fg-col-title es">Comprar En</div><div class="fg-buy-links"><a class="fg-buy-link" href="#" target="_blank">Amazon KDP</a><a class="fg-buy-link" href="#" target="_blank">Apple Books</a><a class="fg-buy-link" href="#" target="_blank">Barnes &amp; Noble</a><a class="fg-buy-link" href="#" target="_blank">Kobo</a><a class="fg-buy-link" href="#" target="_blank">IngramSpark</a><a class="fg-buy-link" href="#" target="_blank">BookBaby</a></div></div></div><div class="footer-bottom"><span class="footer-legal">© 2026 SPY ON THE RISE, LLC · Colorado · All Rights Reserved<a href="#">Privacy Policy</a><a href="#">Terms of Use</a><a href="#">Cookie Policy</a></span><span class="footer-legal">spyontherise.com</span></div></div></footer>
+<footer id="main-footer"><div class="wrap"><div class="fg-grid"><div><div class="fg-brand">SPY ON THE RISE</div><div class="fg-sub en">Independent Publishing House</div><div class="fg-sub fr">Maison d'Édition Indépendante</div><div class="fg-sub es">Editorial Independiente</div><p class="fg-tagline en" id="fg-tagline-en">Publishing work that refuses easy categories. Bilingual. Independent. Uncompromising.</p><p class="fg-tagline fr" id="fg-tagline-fr">Publier des œuvres qui refusent les catégories faciles. Bilingue. Indépendant. Sans compromis.</p><p class="fg-tagline es" id="fg-tagline-es">Publicando obras que rechazan las categorías fáciles. Bilingüe. Independiente. Sin compromisos.</p><div class="fg-socials" id="fg-socials"><a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">IG</a><a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">X</a><a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">LI</a><a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">FB</a><a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">YT</a><a class="fg-soc" href="#" aria-hidden="true" style="opacity:.3;pointer-events:none;">TT</a></div></div><div class="fg-col"><div class="fg-col-title en">Catalog</div><div class="fg-col-title fr">Catalogue</div><div class="fg-col-title es">Catálogo</div><ul id="footer-catalog-links"></ul></div><div class="fg-col"><div class="fg-col-title en">Publishing House</div><div class="fg-col-title fr">La Maison</div><div class="fg-col-title es">La Editorial</div><ul><li><a onclick="goAbout()" class="en">About Us</a><a onclick="goAbout()" class="fr">À Propos</a><a onclick="goAbout()" class="es">Acerca de</a></li><li><a href="mailto:press@spyontherise.com" class="en">Press &amp; Media</a><a href="mailto:press@spyontherise.com" class="fr">Presse &amp; Médias</a><a href="mailto:press@spyontherise.com" class="es">Prensa</a></li><li><a href="mailto:rights@spyontherise.com" class="en">Rights &amp; Licensing</a><a href="mailto:rights@spyontherise.com" class="fr">Droits &amp; Licences</a><a href="mailto:rights@spyontherise.com" class="es">Derechos</a></li><li><a onclick="showPage('bundles')" class="en">Bundles &amp; Deals</a><a onclick="showPage('bundles')" class="fr">Lots &amp; Offres</a><a onclick="showPage('bundles')" class="es">Paquetes</a></li><li><a href="mailto:contact@spyontherise.com" class="en">Contact</a><a href="mailto:contact@spyontherise.com" class="fr">Contact</a><a href="mailto:contact@spyontherise.com" class="es">Contacto</a></li></ul></div><div class="fg-col"><div class="fg-col-title en">Buy Books On</div><div class="fg-col-title fr">Acheter Sur</div><div class="fg-col-title es">Comprar En</div><div class="fg-buy-links"><a class="fg-buy-link" href="#" target="_blank">Amazon KDP</a><a class="fg-buy-link" href="#" target="_blank">Apple Books</a><a class="fg-buy-link" href="#" target="_blank">Barnes &amp; Noble</a><a class="fg-buy-link" href="#" target="_blank">Kobo</a><a class="fg-buy-link" href="#" target="_blank">IngramSpark</a><a class="fg-buy-link" href="#" target="_blank">BookBaby</a></div></div></div><div class="footer-bottom"><span class="footer-legal">© 2026 SPY ON THE RISE, LLC · Colorado · All Rights Reserved<a href="#">Privacy Policy</a><a href="#">Terms of Use</a><a href="#">Cookie Policy</a></span><span class="footer-legal">spyontherise.com</span></div></div></footer>
 
 <!-- BOOK MODAL -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeMBg(event)">

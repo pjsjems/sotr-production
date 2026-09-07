@@ -11,8 +11,12 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { locked } = req.body || {};
     if (typeof locked !== 'boolean') return res.status(400).json({ error: 'locked must be boolean' });
-    await writeSiteLock(locked);
-    return res.status(200).json({ success: true, locked });
+    try {
+      await writeSiteLock(locked);
+      return res.status(200).json({ success: true, locked });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
   res.status(405).end();
 }

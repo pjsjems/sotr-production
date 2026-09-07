@@ -311,6 +311,15 @@ function PlatformsAdmin({ toast }) {
   const [platforms, setPlatforms] = useState(null);
   const [newPlatform, setNewPlatform] = useState({ name:'', abbr:'', color:'#333333', note:'', type:'print' });
   const [platformSaving, setPlatformSaving] = useState(false);
+  const [editKey, setEditKey] = useState(null); // `${type}:${key}` of row being edited
+  const [editRow, setEditRow] = useState({});
+  const [rowSaving, setRowSaving] = useState(false);
+
+  async function reload() {
+    const r2 = await fetch('/api/admin/catalog');
+    const d2 = await r2.json();
+    setPlatforms(d2.platforms || {});
+  }
 
   useEffect(() => {
     fetch('/api/admin/catalog')
@@ -318,6 +327,47 @@ function PlatformsAdmin({ toast }) {
       .then(d => setPlatforms(d.platforms || {}))
       .catch(() => setPlatforms({}));
   }, []);
+
+  function openEditRow(p) {
+    setEditKey(`${p.type}:${p.key}`);
+    setEditRow({ name:p.name, abbr:p.abbr, color:p.color, note:p.note || '' });
+  }
+
+  async function saveEditRow(p) {
+    setRowSaving(true);
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update-platform',
+          platformType: p.type,
+          platform: { key: p.key, ...editRow, abbr: editRow.abbr.slice(0,3).toUpperCase() },
+        }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast('Platform updated', 'success');
+        setEditKey(null);
+        await reload();
+      } else toast(d.error, 'error');
+    } catch { toast('Failed to update platform', 'error'); }
+    setRowSaving(false);
+  }
+
+  async function deletePlatformRow(p) {
+    if (!confirm(`Delete "${p.name}"? This removes it from every book that links to it.`)) return;
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-platform', platformType: p.type, platform: { key: p.key } }),
+      });
+      const d = await r.json();
+      if (d.success) { toast('Platform deleted', 'success'); await reload(); }
+      else toast(d.error, 'error');
+    } catch { toast('Failed to delete platform', 'error'); }
+  }
 
   async function addPlatformEntry() {
     if (!newPlatform.name || !newPlatform.abbr) {
@@ -346,9 +396,7 @@ function PlatformsAdmin({ toast }) {
       if (d.success) {
         toast(`Platform "${newPlatform.name}" added`, 'success');
         setNewPlatform({ name:'', abbr:'', color:'#333333', note:'', type:'print' });
-        const r2 = await fetch('/api/admin/catalog');
-        const d2 = await r2.json();
-        setPlatforms(d2.platforms || {});
+        await reload();
       } else toast(d.error, 'error');
     } catch { toast('Failed to add platform', 'error'); }
     setPlatformSaving(false);
@@ -370,19 +418,55 @@ function PlatformsAdmin({ toast }) {
         ) : (
           <div className="panel-body" style={{ padding:0 }}>
             <table className="tbl">
-              <thead><tr><th>Platform</th><th>Type</th><th>Note</th><th>Color</th></tr></thead>
+              <thead><tr><th>Platform</th><th>Type</th><th>Note</th><th>Color</th><th>Actions</th></tr></thead>
               <tbody>
-                {allPlatforms.map((p, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span style={{ background:p.color, color:'#fff', fontWeight:700, fontSize:10, padding:'2px 7px', borderRadius:3, marginRight:8 }}>{p.abbr}</span>
-                      <span style={{ fontWeight:500, color:'var(--tx)' }}>{p.name}</span>
-                    </td>
-                    <td><span className="badge badge-series">{p.type}</span></td>
-                    <td style={{ fontSize:12, color:'var(--tx3)' }}>{p.note}</td>
-                    <td><span style={{ display:'inline-block', width:18, height:18, borderRadius:3, background:p.color, border:'1px solid var(--border)' }}/></td>
-                  </tr>
-                ))}
+                {allPlatforms.map((p, i) => {
+                  const rowKey = `${p.type}:${p.key}`;
+                  const editing = editKey === rowKey;
+                  return (
+                    <tr key={i}>
+                      {editing ? (
+                        <>
+                          <td>
+                            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                              <input className="field-input" value={editRow.abbr} onChange={e=>setEditRow(f=>({...f,abbr:e.target.value.toUpperCase().slice(0,3)}))} style={{ width:60, fontFamily:'monospace', fontSize:11 }} />
+                              <input className="field-input" value={editRow.name} onChange={e=>setEditRow(f=>({...f,name:e.target.value}))} style={{ flex:1 }} />
+                            </div>
+                          </td>
+                          <td><span className="badge badge-series">{p.type}</span></td>
+                          <td><input className="field-input" value={editRow.note} onChange={e=>setEditRow(f=>({...f,note:e.target.value}))} style={{ fontSize:12 }} /></td>
+                          <td>
+                            <input type="color" value={editRow.color} onChange={e=>setEditRow(f=>({...f,color:e.target.value}))} style={{ width:32, height:26, border:'1px solid var(--border)', borderRadius:4, cursor:'pointer', background:'none' }} />
+                          </td>
+                          <td>
+                            <div style={{ display:'flex', gap:4 }}>
+                              <button className="btn btn-p btn-sm" disabled={rowSaving} onClick={()=>saveEditRow(p)}>
+                                {rowSaving ? <span className="spinner"/> : 'Save'}
+                              </button>
+                              <button className="btn btn-s btn-sm" onClick={()=>setEditKey(null)}>Cancel</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>
+                            <span style={{ background:p.color, color:'#fff', fontWeight:700, fontSize:10, padding:'2px 7px', borderRadius:3, marginRight:8 }}>{p.abbr}</span>
+                            <span style={{ fontWeight:500, color:'var(--tx)' }}>{p.name}</span>
+                          </td>
+                          <td><span className="badge badge-series">{p.type}</span></td>
+                          <td style={{ fontSize:12, color:'var(--tx3)' }}>{p.note}</td>
+                          <td><span style={{ display:'inline-block', width:18, height:18, borderRadius:3, background:p.color, border:'1px solid var(--border)' }}/></td>
+                          <td>
+                            <div style={{ display:'flex', gap:4 }}>
+                              <button className="btn btn-s btn-sm" onClick={()=>openEditRow(p)}>✏️ Edit</button>
+                              <button className="btn btn-danger btn-sm" onClick={()=>deletePlatformRow(p)}>✕</button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -432,13 +516,77 @@ function PlatformsAdmin({ toast }) {
   );
 }
 
+// ── Compact inline "add platform" used from the book links editor ──
+function AddPlatformInline({ type, toast, loadCatalog }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function add() {
+    if (!name.trim()) { toast('Platform name is required', 'error'); return; }
+    setSaving(true);
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add-platform',
+          platform: {
+            name: name.trim(),
+            abbr: name.trim().slice(0, 3).toUpperCase(),
+            color: '#333333',
+            note: '',
+            key: name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+            url: '#',
+          },
+          platformType: type,
+        }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast(`Platform "${name.trim()}" added`, 'success');
+        setName(''); setOpen(false);
+        await loadCatalog();
+      } else toast(d.error, 'error');
+    } catch { toast('Failed to add platform', 'error'); }
+    setSaving(false);
+  }
+
+  if (!open) {
+    return (
+      <button className="btn btn-s btn-sm" onClick={() => setOpen(true)}>+ Add New Platform</button>
+    );
+  }
+  return (
+    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+      <input className="field-input" value={name} onChange={e => setName(e.target.value)}
+        placeholder="Platform name" style={{ maxWidth:220 }} autoFocus />
+      <button className="btn btn-p btn-sm" disabled={saving} onClick={add}>
+        {saving ? <span className="spinner"/> : 'Add'}
+      </button>
+      <button className="btn btn-s btn-sm" onClick={() => { setOpen(false); setName(''); }}>Cancel</button>
+    </div>
+  );
+}
+
 // ── Series Management Component ────────────────────────────
 function SeriesAdmin({ data, toast, loadCatalog }) {
   const [editSeries, setEditSeries] = useState(null);
   const [seriesForm, setSeriesForm] = useState({});
   const [seriesSaving, setSeriesSaving] = useState(false);
+  const [addBookKey, setAddBookKey] = useState('');
+  const [membershipBusy, setMembershipBusy] = useState(false);
 
   const seriesList = data?.series || null;
+
+  // Keep the open modal's book list/counts fresh after add/remove/refresh.
+  useEffect(() => {
+    if (editSeries && data?.series) {
+      const updated = data.series.find(s => s.key === editSeries.key);
+      if (updated) setEditSeries(updated);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   async function saveSeries() {
     setSeriesSaving(true);
@@ -456,6 +604,43 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
       } else toast(d.error, 'error');
     } catch { toast('Failed to save series', 'error'); }
     setSeriesSaving(false);
+  }
+
+  async function addBookToSeries() {
+    if (!addBookKey) return;
+    setMembershipBusy(true);
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'series-add-book', seriesKey: editSeries.key, bookKey: addBookKey }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast('Book added to series', 'success');
+        setAddBookKey('');
+        await loadCatalog();
+      } else toast(d.error, 'error');
+    } catch { toast('Failed to add book', 'error'); }
+    setMembershipBusy(false);
+  }
+
+  async function removeBookFromSeries(bookKey, title) {
+    if (!confirm(`Remove "${title}" from this series? It becomes a Standalone title.`)) return;
+    setMembershipBusy(true);
+    try {
+      const r = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'series-remove-book', seriesKey: editSeries.key, bookKey }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast('Book removed from series', 'success');
+        await loadCatalog();
+      } else toast(d.error, 'error');
+    } catch { toast('Failed to remove book', 'error'); }
+    setMembershipBusy(false);
   }
 
   return (
@@ -499,11 +684,28 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                 <div className="panel-head"><span className="panel-title">Books in this series</span></div>
                 <div className="panel-body" style={{ padding:'.5rem 0' }}>
                   {data && data.books.filter(b => b.seriesKey === editSeries.key).map(b => (
-                    <div key={b.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'.5rem 1rem', borderTop:'1px solid var(--border)' }}>
-                      <span style={{ fontSize:12, color:'var(--tx2)' }}>{b.title}</span>
+                    <div key={b.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'.5rem 1rem', borderTop:'1px solid var(--border)' }}>
+                      <span style={{ fontSize:12, color:'var(--tx2)', flex:1 }}>{b.title}</span>
                       <span className={`badge ${b.available ? 'badge-avail' : 'badge-locked'}`}>{b.available ? 'Live' : 'Locked'}</span>
+                      <button className="btn btn-danger btn-sm" disabled={membershipBusy}
+                        onClick={() => removeBookFromSeries(b.key, b.title)} title="Remove from series">✕</button>
                     </div>
                   ))}
+                  {data && data.books.filter(b => b.seriesKey === editSeries.key).length === 0 && (
+                    <div style={{ padding:'.5rem 1rem', fontSize:12, color:'var(--tx3)' }}>No books in this series yet.</div>
+                  )}
+                </div>
+                <div className="panel-body" style={{ borderTop:'1px solid var(--border)', display:'flex', gap:8 }}>
+                  <select className="field-input field-select" style={{ flex:1 }}
+                    value={addBookKey} onChange={e => setAddBookKey(e.target.value)}>
+                    <option value="">+ Pick a book to add...</option>
+                    {data && data.books.filter(b => b.seriesKey !== editSeries.key).map(b => (
+                      <option key={b.key} value={b.key}>{b.title}{b.series && b.series !== 'Standalone' ? ` (currently: ${b.series})` : ''}</option>
+                    ))}
+                  </select>
+                  <button className="btn btn-s btn-sm" disabled={!addBookKey || membershipBusy} onClick={addBookToSeries}>
+                    {membershipBusy ? <span className="spinner"/> : 'Add'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -907,7 +1109,7 @@ export default function AdminDashboard() {
   const [editBook, setEditBook] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [synopsisBook, setSynopsisBook] = useState(null);
-  const [synopsisForm, setSynopsisForm] = useState({ en:'', fr:'', es:'', urls:{} });
+  const [synopsisForm, setSynopsisForm] = useState({ en:'', fr:'', es:'', links:{} });
   const [toasts, setToasts] = useState([]);
   const [activeTab, setActiveTab] = useState('en');
   const [saving, setSaving] = useState(false);
@@ -916,6 +1118,12 @@ export default function AdminDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [fwdEmail, setFwdEmail] = useState('');
   const [fwdMsg, setFwdMsg] = useState(null);
+  const [footerForm, setFooterForm] = useState({
+    socialLinks: { instagram:'', x:'', linkedin:'', facebook:'', youtube:'', tiktok:'' },
+    tagline_en:'', tagline_fr:'', tagline_es:'',
+  });
+  const [footerMsg, setFooterMsg] = useState(null);
+  const [footerSaving, setFooterSaving] = useState(false);
   const [showAddTitle, setShowAddTitle] = useState(false);
   const [addForm, setAddForm] = useState({});
   const [addSaving, setAddSaving] = useState(false);
@@ -966,7 +1174,19 @@ export default function AdminDashboard() {
   // Load config when settings section opens
   useEffect(() => {
     if (activeSection !== 'settings' || auth !== true) return;
-    fetch('/api/admin/config').then(r=>r.json()).then(d=>setFwdEmail(d.config?.forwardEmail||d.forwardEmail||'')).catch(()=>{});
+    fetch('/api/admin/config').then(r=>r.json()).then(d=>{
+      const cfg = d.config || {};
+      setFwdEmail(cfg.forwardEmail || d.forwardEmail || '');
+      setFooterForm({
+        socialLinks: {
+          instagram:'', x:'', linkedin:'', facebook:'', youtube:'', tiktok:'',
+          ...(cfg.socialLinks || {}),
+        },
+        tagline_en: cfg.footerTagline?.en || '',
+        tagline_fr: cfg.footerTagline?.fr || '',
+        tagline_es: cfg.footerTagline?.es || '',
+      });
+    }).catch(()=>{});
   }, [activeSection, auth]);
 
   // Load texts when texts section opens
@@ -1073,7 +1293,7 @@ export default function AdminDashboard() {
       const r = await fetch('/api/admin/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'synopsis', key: synopsisBook.key, synopsis: { en:synopsisForm.en, fr:synopsisForm.fr, es:synopsisForm.es }, retailerUrls: synopsisForm.urls }),
+        body: JSON.stringify({ action: 'synopsis', key: synopsisBook.key, synopsis: { en:synopsisForm.en, fr:synopsisForm.fr, es:synopsisForm.es }, links: synopsisForm.links }),
       });
       const d = await r.json();
       if (d.success) {
@@ -1119,6 +1339,25 @@ export default function AdminDashboard() {
       if (d.success) setFwdMsg({ type:'success', text:'Forwarding email saved.' });
       else setFwdMsg({ type:'error', text: d.error || 'Save failed.' });
     } catch { setFwdMsg({ type:'error', text:'Request failed.' }); }
+  }
+
+  // ── Save footer settings (social links + tagline) ────────
+  async function saveFooterSettings() {
+    setFooterMsg(null);
+    setFooterSaving(true);
+    try {
+      const r = await fetch('/api/admin/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          socialLinks: footerForm.socialLinks,
+          footerTagline: { en: footerForm.tagline_en, fr: footerForm.tagline_fr, es: footerForm.tagline_es },
+        }),
+      });
+      const d = await r.json();
+      if (d.success) setFooterMsg({ type:'success', text:'Footer settings saved, live in ~10s.' });
+      else setFooterMsg({ type:'error', text: d.error || 'Save failed.' });
+    } catch { setFooterMsg({ type:'error', text:'Request failed.' }); }
+    setFooterSaving(false);
   }
 
   // ── Restore backup ───────────────────────────────────────
@@ -1393,7 +1632,7 @@ export default function AdminDashboard() {
                         ✏️
                       </button>
                       <button className="btn btn-s btn-sm btn-icon" title="Edit synopses"
-                        onClick={() => { setSynopsisBook(b); setSynopsisForm({ en:b.synopsis_en||b.synopsis||'', fr:b.synopsis_fr||'', es:b.synopsis_es||'', urls:b.retailerUrls||{} }); setActiveTab('en'); }}>
+                        onClick={() => { setSynopsisBook(b); setSynopsisForm({ en:b.synopsis_en||b.synopsis||'', fr:b.synopsis_fr||'', es:b.synopsis_es||'', links:b.links||{} }); setActiveTab('en'); }}>
                         📝
                       </button>
                       <button className="btn btn-s btn-sm btn-icon"
@@ -1556,6 +1795,43 @@ export default function AdminDashboard() {
               <input className="field-input" type="email" value={fwdEmail} onChange={e=>setFwdEmail(e.target.value)} placeholder="contact@spyontherise.com" />
             </div>
             <button className="btn btn-p" onClick={saveForwardEmail} style={{marginTop:'.25rem'}}>Save Forwarding Email</button>
+          </div>
+        </div>
+        <div className="panel" style={{ gridColumn:'1 / -1' }}>
+          <div className="panel-head"><span className="panel-title">Footer: Social Links &amp; Tagline</span></div>
+          <div className="panel-body">
+            <p style={{fontSize:12,color:'var(--tx3)',marginBottom:'1rem',lineHeight:1.6}}>
+              Leave a field blank to hide that social icon in the footer. Changes go live within ~10 seconds of saving.
+            </p>
+            {footerMsg && <div className={footerMsg.type==='success'?'success-box':'error-box'} style={{marginBottom:'1rem'}}>{footerMsg.text}</div>}
+            <div className="two-col">
+              {[
+                ['instagram','Instagram'],['x','X (Twitter)'],['linkedin','LinkedIn'],
+                ['facebook','Facebook'],['youtube','YouTube'],['tiktok','TikTok'],
+              ].map(([key,label]) => (
+                <div className="field-row" key={key}>
+                  <label className="field-label">{label}</label>
+                  <input className="field-input" type="url" placeholder="https://"
+                    value={footerForm.socialLinks[key] || ''}
+                    onChange={e => setFooterForm(f => ({...f, socialLinks:{...f.socialLinks,[key]:e.target.value}}))} />
+                </div>
+              ))}
+            </div>
+            <div className="field-row" style={{marginTop:'.5rem'}}>
+              <label className="field-label">Footer Tagline (EN)</label>
+              <input className="field-input" value={footerForm.tagline_en} onChange={e=>setFooterForm(f=>({...f,tagline_en:e.target.value}))} placeholder="Publishing work that refuses easy categories. Bilingual. Independent. Uncompromising." />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Footer Tagline (FR)</label>
+              <input className="field-input" value={footerForm.tagline_fr} onChange={e=>setFooterForm(f=>({...f,tagline_fr:e.target.value}))} />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Footer Tagline (ES)</label>
+              <input className="field-input" value={footerForm.tagline_es} onChange={e=>setFooterForm(f=>({...f,tagline_es:e.target.value}))} />
+            </div>
+            <button className="btn btn-p" onClick={saveFooterSettings} disabled={footerSaving} style={{marginTop:'.25rem'}}>
+              {footerSaving ? <><span className="spinner"/> Saving...</> : 'Save Footer Settings'}
+            </button>
           </div>
         </div>
         <div className="panel">
@@ -1942,6 +2218,8 @@ export default function AdminDashboard() {
                     if (d.success) {
                       setSiteLocked(d.locked);
                       toast(d.locked ? '🔒 Site locked: Coming Soon visible' : '🌐 Site unlocked: fully live', d.locked ? 'warning' : 'success');
+                    } else {
+                      toast(d.error || 'Lock toggle failed', 'error');
                     }
                   } catch { toast('Lock toggle failed', 'error'); }
                   setLockToggling(false);
@@ -2130,7 +2408,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="tabs">
-                {[['en','🇬🇧 English'],['fr','🇫🇷 French'],['es','🇪🇸 Spanish'],['urls','🔗 Retailer URLs']].map(([lang, label]) => (
+                {[['en','🇬🇧 English'],['fr','🇫🇷 French'],['es','🇪🇸 Spanish'],['urls','🔗 Retail Links']].map(([lang, label]) => (
                   <button key={lang} className={`tab-btn ${activeTab===lang?'active':''}`} onClick={() => setActiveTab(lang)}>{label}</button>
                 ))}
               </div>
@@ -2150,15 +2428,45 @@ export default function AdminDashboard() {
                   </div>
                 </>
               ) : (
-                <div className="two-col" style={{ marginTop:'1rem' }}>
-                  {[
-                    ['amazon_print','Amazon Print'],['amazon_ebook','Amazon eBook'],['amazon_audio','Amazon Audible'],
-                    ['apple_books','Apple Books'],['apple_audio','Apple Audio'],['kobo','Kobo'],
-                    ['bn','Barnes & Noble'],['smashwords','Smashwords'],['direct','Direct / Website'],
-                  ].map(([key,label]) => (
-                    <div className="field-row" key={key}>
-                      <label className="field-label">{label}</label>
-                      <input className="field-input" type="url" value={(synopsisForm.urls||{})[key]||''} onChange={e => setSynopsisForm(f => ({...f, urls:{...f.urls,[key]:e.target.value}}))} placeholder="https://" />
+                <div style={{ marginTop:'1rem' }}>
+                  <div style={{ padding:'.6rem .75rem', background:'var(--surface2)', borderRadius:'var(--r2)', fontSize:12, color:'var(--tx3)', lineHeight:1.6, marginBottom:'1rem' }}>
+                    Enter this book's purchase link for each platform. Removing a platform here removes it everywhere, since platforms are shared across the whole catalog.
+                  </div>
+                  {['print','ebook','audio'].map(type => (
+                    <div key={type} style={{ marginBottom:'1.5rem' }}>
+                      <div style={{ fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--tx3)', marginBottom:'.5rem' }}>
+                        {type === 'print' ? 'Print' : type === 'ebook' ? 'eBook' : 'Audiobook'}
+                      </div>
+                      {(data?.platforms?.[type] || []).length === 0 && (
+                        <div style={{ fontSize:12, color:'var(--tx3)', marginBottom:'.5rem' }}>No platforms yet for this format.</div>
+                      )}
+                      {(data?.platforms?.[type] || []).map(p => (
+                        <div key={p.key} style={{ display:'flex', alignItems:'flex-end', gap:8, marginBottom:'.6rem' }}>
+                          <div className="field-row" style={{ flex:1, marginBottom:0 }}>
+                            <label className="field-label">{p.name}</label>
+                            <input className="field-input" type="url"
+                              value={(synopsisForm.links?.[type] || {})[p.key] || ''}
+                              onChange={e => setSynopsisForm(f => ({
+                                ...f, links: { ...f.links, [type]: { ...(f.links?.[type]||{}), [p.key]: e.target.value } },
+                              }))}
+                              placeholder="https://" />
+                          </div>
+                          <button className="btn btn-danger btn-sm" title={`Remove ${p.name} from all platforms`}
+                            onClick={async () => {
+                              if (!confirm(`Remove "${p.name}" from all platforms? This affects every book.`)) return;
+                              try {
+                                const r = await fetch('/api/admin/book', {
+                                  method:'POST', headers:{'Content-Type':'application/json'},
+                                  body: JSON.stringify({ action:'delete-platform', platformType:type, platform:{ key:p.key } }),
+                                });
+                                const d = await r.json();
+                                if (d.success) { toast('Platform removed', 'success'); await loadCatalog(); }
+                                else toast(d.error, 'error');
+                              } catch { toast('Failed to remove platform', 'error'); }
+                            }}>✕</button>
+                        </div>
+                      ))}
+                      <AddPlatformInline type={type} toast={toast} loadCatalog={loadCatalog} />
                     </div>
                   ))}
                 </div>
