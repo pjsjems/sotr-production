@@ -7,14 +7,19 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
   if (req.method === 'GET') {
-    const texts = await readTexts();
-    return res.status(200).json({ texts });
+    try {
+      const raw = await readTexts();
+      return res.status(200).json({ texts: Array.isArray(raw) ? raw : [] });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
   if (req.method === 'POST') {
     const { action, text, id } = req.body || {};
     try {
-      const texts = await readTexts();
+      const raw = await readTexts();
+      const texts = Array.isArray(raw) ? raw : [];
 
       if (action === 'save') {
         if (!text?.id || !text?.title_en)

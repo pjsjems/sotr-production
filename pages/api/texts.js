@@ -14,11 +14,18 @@ function sanitize(t, mode = 'preview') {
   return withoutFull;
 }
 
+async function safeReadTexts() {
+  const raw = await readTexts();
+  return Array.isArray(raw) ? raw.filter(t => t && typeof t === 'object') : [];
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
+  try {
+
   if (req.method === 'GET') {
-    const texts = await readTexts();
+    const texts = await safeReadTexts();
     const { id } = req.query;
     if (id) {
       const t = texts.find(x => x.id === id);
@@ -36,7 +43,7 @@ export default async function handler(req, res) {
     if (!id || !email) return res.status(400).json({ error: 'id and email required' });
     if (!email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
 
-    const texts = await readTexts();
+    const texts = await safeReadTexts();
     const t = texts.find(x => x.id === id);
     if (!t) return res.status(404).json({ error: 'Text not found' });
 
@@ -68,4 +75,9 @@ export default async function handler(req, res) {
   }
 
   res.status(405).end();
+
+  } catch (e) {
+    console.error('[api/texts] handler error:', e.message);
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
 }
