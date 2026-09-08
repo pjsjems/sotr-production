@@ -8,8 +8,6 @@ export default function handler(req, res) {
   if (!session) return res.status(401).json({ authenticated: false });
   res.status(200).json({
     authenticated: true, username: session.username, expiresAt: session.expiresAt,
-    // TEMPORARY diagnostic for the disappearing-text investigation — no
-    // secret values exposed, just which env var names are actually set.
     _kvDebug: {
       hasOldBareVar: !!process.env.KV_REST_API_URL,
       hasNewPrefixedVar: !!process.env.spyontherise_KV_REST_API_URL,
