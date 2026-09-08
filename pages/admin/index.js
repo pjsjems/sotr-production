@@ -1625,6 +1625,22 @@ export default function AdminDashboard() {
     } catch { toast('Restore failed', 'error'); }
   }
 
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  async function createBackupNow() {
+    setCreatingBackup(true);
+    try {
+      const r = await fetch('/api/admin/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' }),
+      });
+      const d = await r.json();
+      if (d.success) { toast('Backup created', 'success'); await loadCatalog(); }
+      else toast(d.error || 'Backup failed', 'error');
+    } catch { toast('Backup failed', 'error'); }
+    setCreatingBackup(false);
+  }
+
   // ── Filtered books ───────────────────────────────────────
   const filteredBooks = data ? data.books.filter(b => {
     const q = searchQ.toLowerCase();
@@ -1980,10 +1996,15 @@ export default function AdminDashboard() {
     return (
       <div>
         <div className="panel" style={{ marginBottom:'1rem' }}>
-          <div className="panel-head"><span className="panel-title">Catalog Backups</span></div>
+          <div className="panel-head">
+            <span className="panel-title">Catalog Backups</span>
+            <button className="btn btn-p btn-sm" onClick={createBackupNow} disabled={creatingBackup}>
+              {creatingBackup ? <><span className="spinner"/> Creating...</> : '+ Create New Backup'}
+            </button>
+          </div>
           <div className="panel-body">
             <p style={{ fontSize:13, color:'var(--tx2)', marginBottom:'1rem', lineHeight:1.6 }}>
-              A backup is created automatically before every save operation. You can restore any backup: the current catalog is backed up first before restoring. Keep the last 20 backups maximum.
+              A backup is created automatically before every save operation, or on demand with the button above. You can restore any backup: the current catalog is backed up first before restoring. Keep the last 20 backups maximum.
             </p>
             {backups.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">💾</div><div className="empty-msg">No backups yet: they are created automatically on first save.</div></div>

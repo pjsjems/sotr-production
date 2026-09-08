@@ -1,14 +1,16 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 
 const LABELS = {
-  en: { section:'Text of the Month', by:'By', preview:'Preview', readMore:'Read the full text', emailPlaceholder:'your@email.com', emailBtn:'Send me the full text', emailHint:'Enter your email to read the full text. We send it once, no spam.', success:'The full text has been sent to your inbox.', errorEmail:'Please enter a valid email address.', errorFetch:'Something went wrong. Please try again.', allTexts:'All Texts', noFeatured:'No featured text this month.', otherTexts:'See Other Texts', recentTitle:'Recent Texts', recentRead:'Read →', noRecent:'' },
-  fr: { section:'Texte du mois', by:'Par', preview:'Extrait', readMore:'Lire le texte complet', emailPlaceholder:'votre@email.com', emailBtn:"M'envoyer le texte complet", emailHint:'Entrez votre email pour lire le texte complet. Envoi unique, sans spam.', success:'Le texte complet a été envoyé dans votre boîte mail.', errorEmail:'Veuillez entrer une adresse email valide.', errorFetch:"Une erreur s'est produite. Veuillez réessayer.", allTexts:'Tous les textes', noFeatured:'Aucun texte à la une ce mois-ci.', otherTexts:'Voir les autres textes', recentTitle:'Textes récents', recentRead:'Lire →', noRecent:'' },
-  es: { section:'Texto del mes', by:'Por', preview:'Extracto', readMore:'Leer el texto completo', emailPlaceholder:'tu@email.com', emailBtn:'Enviarme el texto completo', emailHint:'Ingresa tu email para leer el texto completo. Un solo envío, sin spam.', success:'El texto completo ha sido enviado a tu bandeja de entrada.', errorEmail:'Por favor ingresa un email válido.', errorFetch:'Algo salió mal. Por favor intenta de nuevo.', allTexts:'Todos los textos', noFeatured:'No hay texto destacado este mes.', otherTexts:'Ver otros textos', recentTitle:'Textos recientes', recentRead:'Leer →', noRecent:'' },
+  en: { section:'Text of the Month', by:'By', preview:'Preview', readMore:'Read the full text', emailPlaceholder:'your@email.com', emailBtn:'Send me the full text', emailHint:'Enter your email to read the full text. We send it once, no spam.', success:'The full text has been sent to your inbox.', errorEmail:'Please enter a valid email address.', errorFetch:'Something went wrong. Please try again.', allTexts:'All Texts', noFeatured:'No featured text this month.', otherTexts:'See Other Texts', recentTitle:'Recent Texts', recentRead:'Read →', noRecent:'', mainPage:'Main Page' },
+  fr: { section:'Texte du mois', by:'Par', preview:'Extrait', readMore:'Lire le texte complet', emailPlaceholder:'votre@email.com', emailBtn:"M'envoyer le texte complet", emailHint:'Entrez votre email pour lire le texte complet. Envoi unique, sans spam.', success:'Le texte complet a été envoyé dans votre boîte mail.', errorEmail:'Veuillez entrer une adresse email valide.', errorFetch:"Une erreur s'est produite. Veuillez réessayer.", allTexts:'Tous les textes', noFeatured:'Aucun texte à la une ce mois-ci.', otherTexts:'Voir les autres textes', recentTitle:'Textes récents', recentRead:'Lire →', noRecent:'', mainPage:'Page principale' },
+  es: { section:'Texto del mes', by:'Por', preview:'Extracto', readMore:'Leer el texto completo', emailPlaceholder:'tu@email.com', emailBtn:'Enviarme el texto completo', emailHint:'Ingresa tu email para leer el texto completo. Un solo envío, sin spam.', success:'El texto completo ha sido enviado a tu bandeja de entrada.', errorEmail:'Por favor ingresa un email válido.', errorFetch:'Algo salió mal. Por favor intenta de nuevo.', allTexts:'Todos los textos', noFeatured:'No hay texto destacado este mes.', otherTexts:'Ver otros textos', recentTitle:'Textos recientes', recentRead:'Leer →', noRecent:'', mainPage:'Página principal' },
 };
 
 export default function TextesPage() {
+  const router = useRouter();
   const [lang, setLang] = useState('en');
   const [texts, setTexts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,12 +21,8 @@ export default function TextesPage() {
   const [recentTexts, setRecentTexts] = useState([]);
   const [requestedId, setRequestedId] = useState(null);
 
+  // Runs once: language + the two text lists don't depend on the URL.
   useEffect(() => {
-    // Check if a specific text ID is requested via query param
-    const params = new URLSearchParams(window.location.search);
-    const reqId = params.get('id');
-    if (reqId) setRequestedId(reqId);
-
     const saved = (typeof window !== 'undefined' && localStorage.getItem('sotr-lang')) || 'en';
     if (['en','fr','es'].includes(saved)) setLang(saved);
 
@@ -42,6 +40,17 @@ export default function TextesPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Reacts to ?id=... changing, including clicking a "Recent Texts" Read
+  // link while already on this page — router.query updates without a
+  // remount, so this must be its own effect keyed on the query itself.
+  useEffect(() => {
+    if (!router.isReady) return;
+    const reqId = router.query.id;
+    setRequestedId(typeof reqId === 'string' ? reqId : null);
+    setFullText(null);
+    setEmailMsg('');
+  }, [router.isReady, router.query.id]);
 
   const L = LABELS[lang] || LABELS.en;
   const featured = requestedId
@@ -172,8 +181,9 @@ export default function TextesPage() {
                   <span style={{ fontSize: 14 }}>→</span>
                 </Link>
                 <Link href="/"
-                  style={{ fontSize: 12, color: '#9A8F85', textDecoration: 'none', fontWeight: 600, letterSpacing: '.06em' }}>
-                  ← SPY ON THE RISE
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: "'Source Sans 3', sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7A1515', textDecoration: 'none', border: '1px solid rgba(122,21,21,.3)', borderRadius: 4, padding: '9px 18px' }}>
+                  <span style={{ fontSize: 14 }}>←</span>
+                  <span>{L.mainPage}</span>
                 </Link>
               </div>
             </>

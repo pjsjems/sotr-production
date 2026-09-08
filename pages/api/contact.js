@@ -1,18 +1,5 @@
-// pages/api/contact.js: saves messages to data/messages.json
-import fs from 'fs';
-import path from 'path';
-
-const MESSAGES_PATH = path.join(process.cwd(), 'data', 'messages.json');
-
-function saveMessage(msg) {
-  let msgs = [];
-  if (fs.existsSync(MESSAGES_PATH)) {
-    try { msgs = JSON.parse(fs.readFileSync(MESSAGES_PATH, 'utf8')); } catch {}
-  }
-  msgs.unshift(msg);
-  if (msgs.length > 200) msgs.splice(200);
-  fs.writeFileSync(MESSAGES_PATH, JSON.stringify(msgs, null, 2), 'utf8');
-}
+// pages/api/contact.js: saves messages via KV (or file in local dev)
+import { readMessages, writeMessages } from '../../lib/adminData';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -21,7 +8,8 @@ export default async function handler(req, res) {
   if (!name || !email || !message) return res.status(400).json({ error: 'Missing required fields' });
 
   try {
-    saveMessage({
+    const msgs = await readMessages();
+    msgs.unshift({
       id: Date.now().toString(),
       name, email,
       subject: subject || '',
@@ -29,6 +17,8 @@ export default async function handler(req, res) {
       date: new Date().toISOString(),
       read: false,
     });
+    if (msgs.length > 200) msgs.length = 200;
+    await writeMessages(msgs);
     console.log('[Contact] Saved:', { name, email, subject, type });
     return res.status(200).json({ success: true });
   } catch (e) {

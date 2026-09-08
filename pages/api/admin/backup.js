@@ -1,5 +1,5 @@
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
-import { listBackups, restoreBackup } from '../../../lib/adminData';
+import { listBackups, restoreBackup, createManualBackup } from '../../../lib/adminData';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -10,10 +10,12 @@ export default async function handler(req, res) {
     catch (e) { return res.status(500).json({ error: e.message }); }
   }
   if (req.method === 'POST') {
-    const { filename } = req.body || {};
-    if (!filename) return res.status(400).json({ error: 'Filename required' });
-    try { return res.status(200).json(await restoreBackup(filename)); }
-    catch (e) { return res.status(500).json({ error: e.message }); }
+    const { filename, action } = req.body || {};
+    try {
+      if (action === 'create') return res.status(200).json(await createManualBackup());
+      if (!filename) return res.status(400).json({ error: 'Filename required' });
+      return res.status(200).json(await restoreBackup(filename));
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
   res.status(405).end();
 }
