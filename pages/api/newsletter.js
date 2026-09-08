@@ -12,6 +12,8 @@
 //      MAILCHIMP_SERVER=us1  (the prefix in your API key, e.g. "us1")
 // ════════════════════════════════════════════════
 
+import { readMessages, writeMessages, readNotifications, writeNotifications } from '../../lib/adminData';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -23,15 +25,35 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid email address' });
   }
 
-  // Save notification request to local store (non-blocking, always runs)
+  // Record the request directly (no self-HTTP call — an earlier version
+  // fired this off without awaiting it, which Vercel's serverless
+  // runtime can (and did) tear down before the write ever completed,
+  // silently dropping every "Notify Me" / newsletter signup).
   const saveLocally = async () => {
     try {
-      const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      await fetch(`${base}/api/admin/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, lang, bookKey, bookTitle, type: type === 'prelaunch' ? 'notification' : type }),
-      });
+      const recordType = type === 'prelaunch' ? 'notification' : type;
+      if (recordType === 'notification') {
+        const notifs = await readNotifications();
+        const exists = notifs.findIndex(n => n.email === email && n.bookKey === (bookKey || ''));
+        if (exists >= 0) return;
+        notifs.unshift({
+          id: Date.now().toString(), email,
+          bookKey: bookKey || '', bookTitle: bookTitle || bookKey || '',
+          lang, requestedAt: new Date().toISOString(), notified: false,
+        });
+        await writeNotifications(notifs);
+      } else {
+        const msgs = await readMessages();
+        msgs.unshift({
+          id: Date.now().toString(), name: 'Anonymous', email,
+          subject: bookTitle ? `Newsletter signup: ${bookTitle}` : 'Newsletter signup',
+          message: '', type: recordType || 'general',
+          receivedAt: new Date().toISOString(), read: false,
+          replied: false, replyText: '', repliedAt: null,
+        });
+        if (msgs.length > 200) msgs.length = 200;
+        await writeMessages(msgs);
+      }
     } catch (e) {
       console.log('[Newsletter] Local store save failed:', e.message);
     }
@@ -42,7 +64,7 @@ export default async function handler(req, res) {
     const devTags = [`lang-${lang}`, 'website-signup', ...extraTags];
     if (type === 'prelaunch' && bookKey) { devTags.push('prelaunch-notification', `book-${bookKey}`); }
     console.log(`[Newsletter] Signup received: ${email} (${lang}) tags:[${devTags.join(',')}] , Mailchimp not configured yet`);
-    saveLocally();
+    await saveLocally();
     return res.status(200).json({ success: true, message: 'Subscribed (dev mode)' });
   }
 
@@ -73,7 +95,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (response.ok || data.title === 'Member Exists') {
-      saveLocally();
+      await saveLocally();
       return res.status(200).json({ success: true });
     }
 
