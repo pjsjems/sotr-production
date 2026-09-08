@@ -16,11 +16,8 @@ export default async function handler(req, res) {
     const rawBody = await rawR.text();
     out.rawGetStatus = rawR.status;
     out.rawGetBodyLength = rawBody.length;
-    try {
-      const parsed = JSON.parse(rawBody);
-      const inner = typeof parsed.result === 'string' ? JSON.parse(parsed.result) : parsed.result;
-      out.rawGetIds = Array.isArray(inner) ? inner.map(t => t.id) : 'NOT ARRAY';
-    } catch (e) { out.rawGetParseError = e.message; }
+    out.rawGetBodyFirst400 = rawBody.slice(0, 400);
+    out.rawGetBodyLast200 = rawBody.slice(-200);
 
     const real = await readTexts();
     out.readTextsIsArray = Array.isArray(real);
