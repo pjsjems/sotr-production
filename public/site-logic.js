@@ -674,12 +674,29 @@ function renderFooterLinks(){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    NEWSLETTER
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function handleNL(){
-  const v=document.getElementById('nl-input').value;
-  if(!v||!v.includes('@'))return;
-  document.getElementById('nl-input').style.display='none';
-  document.querySelector('.nl-submit').style.display='none';
-  document.getElementById('nl-confirm').style.display='block';
+async function handleNL(){
+  const input = document.getElementById('nl-input');
+  const btn = document.querySelector('.nl-submit');
+  const confirmEl = document.getElementById('nl-confirm');
+  const v = (input.value || '').trim();
+  if (!v || !v.includes('@') || !v.includes('.')) return;
+
+  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
+  try {
+    const lang = document.body.getAttribute('data-lang') || 'en';
+    const r = await fetch('/api/newsletter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: v, lang, type: 'notification', tag: 'new-releases' }),
+    });
+    if (!r.ok) throw new Error('request failed');
+    input.style.display = 'none';
+    if (btn) btn.style.display = 'none';
+    if (confirmEl) confirmEl.style.display = 'block';
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    console.error('[Newsletter] Signup failed:', e.message);
+  }
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
