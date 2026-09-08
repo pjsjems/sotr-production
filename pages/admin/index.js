@@ -580,60 +580,43 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
   const [membershipBusy, setMembershipBusy] = useState(false);
 
   // ── Add New Series ────────────────────────────────────────
+  // Everything — series info, picking existing books, and staging brand
+  // new ones — lives in one form. Nothing hits the server until "Create
+  // Series" is clicked, which creates the series and then attaches every
+  // selected/staged book in one action.
   const [showNewSeries, setShowNewSeries] = useState(false);
   const [newSeriesForm, setNewSeriesForm] = useState({ name:'', tag:'', desc:'' });
   const [creatingSeries, setCreatingSeries] = useState(false);
-  const [createdSeries, setCreatedSeries] = useState(null); // { key, name } once step 1 is done
-  const [pickBookKey, setPickBookKey] = useState('');
+  const [selectedExisting, setSelectedExisting] = useState([]); // book keys
   const [showEmbeddedAddBook, setShowEmbeddedAddBook] = useState(false);
   const [newBookForm, setNewBookForm] = useState({});
   const [newBookAutoKey, setNewBookAutoKey] = useState('');
-  const [addingBook, setAddingBook] = useState(false);
+  const [newBookDrafts, setNewBookDrafts] = useState([]); // staged, not yet saved
 
   function closeNewSeries() {
     setShowNewSeries(false);
     setNewSeriesForm({ name:'', tag:'', desc:'' });
-    setCreatedSeries(null);
-    setPickBookKey('');
+    setSelectedExisting([]);
     setShowEmbeddedAddBook(false);
     setNewBookForm({});
     setNewBookAutoKey('');
+    setNewBookDrafts([]);
   }
 
-  async function createSeries() {
-    if (!newSeriesForm.name.trim()) { toast('Series name is required', 'error'); return; }
-    setCreatingSeries(true);
-    try {
-      const r = await fetch('/api/admin/book', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add-series', series: newSeriesForm }),
-      });
-      const d = await r.json();
-      if (d.success) {
-        toast(`Series "${d.name}" created`, 'success');
-        setCreatedSeries({ key: d.key, name: d.name });
-        await loadCatalog();
-      } else toast(d.error || 'Failed to create series', 'error');
-    } catch { toast('Failed to create series', 'error'); }
-    setCreatingSeries(false);
+  function toggleExistingBook(key) {
+    setSelectedExisting(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   }
 
-  async function pickExistingBook() {
-    if (!pickBookKey || !createdSeries) return;
-    setAddingBook(true);
-    try {
-      const r = await fetch('/api/admin/book', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'series-add-book', seriesKey: createdSeries.key, bookKey: pickBookKey }),
-      });
-      const d = await r.json();
-      if (d.success) {
-        toast('Book added to series', 'success');
-        setPickBookKey('');
-        await loadCatalog();
-      } else toast(d.error, 'error');
-    } catch { toast('Failed to add book', 'error'); }
-    setAddingBook(false);
+  function stageNewBook() {
+    if (!newBookForm.title) { toast('Title is required', 'error'); return; }
+    setNewBookDrafts(prev => [...prev, { ...newBookForm, _previewKey: newBookAutoKey }]);
+    setNewBookForm({});
+    setNewBookAutoKey('');
+    setShowEmbeddedAddBook(false);
+  }
+
+  function removeDraft(idx) {
+    setNewBookDrafts(prev => prev.filter((_, i) => i !== idx));
   }
 
   // Auto-generate a key preview for the embedded new-book form, same
@@ -653,25 +636,55 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
     return () => clearTimeout(t);
   }, [newBookForm.title, showEmbeddedAddBook]);
 
-  async function addNewBookToSeries() {
-    if (!newBookForm.title) { toast('Title is required', 'error'); return; }
-    if (!createdSeries) return;
-    setAddingBook(true);
+  async function createSeriesWithBooks() {
+    if (!newSeriesForm.name.trim()) { toast('Series name is required', 'error'); return; }
+    setCreatingSeries(true);
     try {
-      const r = await fetch('/api/admin/add-book', {
+      const r = await fetch('/api/admin/book', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookData: { ...newBookForm, series: createdSeries.name, seriesKey: createdSeries.key, key: newBookAutoKey } }),
+        body: JSON.stringify({ action: 'add-series', series: newSeriesForm }),
       });
       const d = await r.json();
-      if (d.success) {
-        toast(`"${newBookForm.title}" added to "${createdSeries.name}"`, 'success');
-        setNewBookForm({});
-        setNewBookAutoKey('');
-        setShowEmbeddedAddBook(false);
-        await loadCatalog();
-      } else toast(d.error || 'Failed to add book', 'error');
-    } catch { toast('Request failed', 'error'); }
-    setAddingBook(false);
+      if (!d.success) { toast(d.error || 'Failed to create series', 'error'); setCreatingSeries(false); return; }
+
+      const seriesKey = d.key, seriesName = d.name;
+      let failures = 0;
+
+      for (const bookKey of selectedExisting) {
+        try {
+          const rr = await fetch('/api/admin/book', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'series-add-book', seriesKey, bookKey }),
+          });
+          const dd = await rr.json();
+          if (!dd.success) failures++;
+        } catch { failures++; }
+      }
+
+      // Sequential on purpose: each new book's key is generated from the
+      // catalog's current state, so parallel creates could collide.
+      for (const draft of newBookDrafts) {
+        try {
+          const { _previewKey, ...bookData } = draft;
+          const rr = await fetch('/api/admin/add-book', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookData: { ...bookData, series: seriesName, seriesKey } }),
+          });
+          const dd = await rr.json();
+          if (!dd.success) failures++;
+        } catch { failures++; }
+      }
+
+      const bookCount = selectedExisting.length + newBookDrafts.length;
+      if (failures === 0) {
+        toast(`Series "${seriesName}" created${bookCount ? ` with ${bookCount} book${bookCount>1?'s':''}` : ''}`, 'success');
+      } else {
+        toast(`Series "${seriesName}" created, but ${failures} of ${bookCount} books failed to attach — add them via Edit Series`, 'warning');
+      }
+      closeNewSeries();
+      await loadCatalog();
+    } catch { toast('Failed to create series', 'error'); }
+    setCreatingSeries(false);
   }
 
   const seriesList = data?.series || null;
@@ -828,145 +841,129 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
               <button className="modal-cls" onClick={closeNewSeries}>✕</button>
             </div>
             <div className="modal-body">
-              {!createdSeries ? (
-                <>
-                  <div className="field-row">
-                    <label className="field-label">Series Name <span style={{color:'var(--crb)'}}>*</span></label>
-                    <input className="field-input" autoFocus value={newSeriesForm.name}
-                      onChange={e => setNewSeriesForm(f => ({...f, name:e.target.value}))}
-                      placeholder="e.g. The Atlas Protocol" />
-                  </div>
-                  <div className="field-row">
-                    <label className="field-label">Genre Tag</label>
-                    <input className="field-input" value={newSeriesForm.tag}
-                      onChange={e => setNewSeriesForm(f => ({...f, tag:e.target.value}))}
-                      placeholder="e.g. Spy Thriller" />
-                  </div>
-                  <div className="field-row">
-                    <label className="field-label">Short Description</label>
-                    <textarea className="field-input field-textarea" style={{minHeight:70}} value={newSeriesForm.desc}
-                      onChange={e => setNewSeriesForm(f => ({...f, desc:e.target.value}))}
-                      placeholder="One or two sentences about the series…" />
-                    <div className="field-hint">You can add richer series-page copy later.</div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{background:'var(--crp)',border:'1px solid rgba(200,112,112,.25)',borderRadius:6,padding:'.65rem 1rem',marginBottom:'1rem',fontSize:13,color:'var(--crb)'}}>
-                    ✓ Series &quot;{createdSeries.name}&quot; created. Now add its books below.
-                  </div>
+              <div className="field-row">
+                <label className="field-label">Series Name <span style={{color:'var(--crb)'}}>*</span></label>
+                <input className="field-input" autoFocus value={newSeriesForm.name}
+                  onChange={e => setNewSeriesForm(f => ({...f, name:e.target.value}))}
+                  placeholder="e.g. The Atlas Protocol" />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Genre Tag</label>
+                <input className="field-input" value={newSeriesForm.tag}
+                  onChange={e => setNewSeriesForm(f => ({...f, tag:e.target.value}))}
+                  placeholder="e.g. Spy Thriller" />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Short Description</label>
+                <textarea className="field-input field-textarea" style={{minHeight:60}} value={newSeriesForm.desc}
+                  onChange={e => setNewSeriesForm(f => ({...f, desc:e.target.value}))}
+                  placeholder="One or two sentences about the series…" />
+                <div className="field-hint">You can add richer series-page copy later.</div>
+              </div>
 
-                  <div className="panel">
-                    <div className="panel-head"><span className="panel-title">Books in this series</span></div>
-                    <div className="panel-body" style={{ padding:'.5rem 0' }}>
-                      {data && data.books.filter(b => b.seriesKey === createdSeries.key).map(b => (
-                        <div key={b.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'.5rem 1rem', borderTop:'1px solid var(--border)' }}>
-                          <span style={{ fontSize:12, color:'var(--tx2)', flex:1 }}>{b.title}</span>
-                          <span className={`badge ${b.available ? 'badge-avail' : 'badge-locked'}`}>{b.available ? 'Live' : 'Locked'}</span>
-                          <button className="btn btn-danger btn-sm" disabled={membershipBusy}
-                            onClick={() => removeBookFromSeries(b.key, b.title, createdSeries.key)} title="Remove from series">✕</button>
-                        </div>
-                      ))}
-                      {data && data.books.filter(b => b.seriesKey === createdSeries.key).length === 0 && (
-                        <div style={{ padding:'.5rem 1rem', fontSize:12, color:'var(--tx3)' }}>No books added yet.</div>
-                      )}
+              <div className="panel" style={{marginTop:'.75rem'}}>
+                <div className="panel-head"><span className="panel-title">Pick Existing Books to Include</span></div>
+                <div className="panel-body" style={{ padding:'.5rem 0', maxHeight:220, overflowY:'auto' }}>
+                  {data && data.books.map(b => (
+                    <label key={b.key} style={{ display:'flex', alignItems:'center', gap:10, padding:'.5rem 1rem', borderTop:'1px solid var(--border)', cursor:'pointer' }}>
+                      <input type="checkbox" checked={selectedExisting.includes(b.key)} onChange={() => toggleExistingBook(b.key)}
+                        style={{accentColor:'var(--crb)',width:15,height:15,flexShrink:0}} />
+                      <span style={{ fontSize:12, color:'var(--tx2)', flex:1 }}>{b.title}</span>
+                      {b.series && b.series !== 'Standalone' && <span style={{fontSize:11,color:'var(--tx3)'}}>currently: {b.series}</span>}
+                    </label>
+                  ))}
+                  {(!data || data.books.length === 0) && (
+                    <div style={{ padding:'.5rem 1rem', fontSize:12, color:'var(--tx3)' }}>No books in the catalog yet.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="panel" style={{marginTop:'.75rem'}}>
+                <div className="panel-head"><span className="panel-title">New Books to Create ({newBookDrafts.length})</span></div>
+                <div className="panel-body" style={{ padding:'.5rem 0' }}>
+                  {newBookDrafts.map((d, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'.5rem 1rem', borderTop:'1px solid var(--border)' }}>
+                      <span style={{ fontSize:12, color:'var(--tx2)', flex:1 }}>{d.title}</span>
+                      <button className="btn btn-danger btn-sm" onClick={() => removeDraft(i)} title="Remove">✕</button>
                     </div>
-                    <div className="panel-body" style={{ borderTop:'1px solid var(--border)', display:'flex', gap:8 }}>
-                      <select className="field-input field-select" style={{ flex:1 }}
-                        value={pickBookKey} onChange={e => setPickBookKey(e.target.value)}>
-                        <option value="">+ Pick an existing book to add...</option>
-                        {data && data.books.filter(b => b.seriesKey !== createdSeries.key).map(b => (
-                          <option key={b.key} value={b.key}>{b.title}{b.series && b.series !== 'Standalone' ? ` (currently: ${b.series})` : ''}</option>
-                        ))}
-                      </select>
-                      <button className="btn btn-s btn-sm" disabled={!pickBookKey || addingBook} onClick={pickExistingBook}>
-                        {addingBook ? <span className="spinner"/> : 'Add'}
+                  ))}
+                  {newBookDrafts.length === 0 && (
+                    <div style={{ padding:'.5rem 1rem', fontSize:12, color:'var(--tx3)' }}>None staged yet.</div>
+                  )}
+                </div>
+                <div className="panel-head" style={{cursor:'pointer', borderTop:'1px solid var(--border)'}} onClick={() => setShowEmbeddedAddBook(v => !v)}>
+                  <span className="panel-title">+ Stage a Brand New Book</span>
+                  <span style={{fontSize:12,color:'var(--tx3)'}}>{showEmbeddedAddBook ? '▲ Hide' : '▼ Show'}</span>
+                </div>
+                {showEmbeddedAddBook && (
+                  <div className="panel-body" style={{display:'flex',flexDirection:'column',gap:0}}>
+                    <div style={{background:'var(--crp)',border:'1px solid rgba(200,112,112,.25)',borderRadius:6,padding:'.5rem .85rem',margin:'.75rem 1rem 0',display:'flex',alignItems:'center',gap:'.6rem'}}>
+                      <span style={{fontSize:10,fontWeight:700,color:'var(--crb)',letterSpacing:'.1em',textTransform:'uppercase',flexShrink:0}}>Auto Key</span>
+                      <code style={{fontSize:12,color:'var(--crb)'}}>{newBookAutoKey || 'Type a title to generate key…'}</code>
+                    </div>
+                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
+                      <label className="field-label">Title <span style={{color:'var(--crb)'}}>*</span></label>
+                      <input className="field-input" value={newBookForm.title||''} onChange={e=>setNewBookForm(f=>({...f,title:e.target.value}))} placeholder="e.g. The Atlas Protocol: Book 1" />
+                    </div>
+                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
+                      <label className="field-label">Subtitle</label>
+                      <input className="field-input" value={newBookForm.subtitle||''} onChange={e=>setNewBookForm(f=>({...f,subtitle:e.target.value}))} />
+                    </div>
+                    <div className="two-col" style={{margin:'.75rem 1rem 0'}}>
+                      <div className="field-row">
+                        <label className="field-label">Genre</label>
+                        <select className="field-input field-select" value={newBookForm.genre||''} onChange={e=>setNewBookForm(f=>({...f,genre:e.target.value}))}>
+                          <option value="">Select genre…</option>
+                          {NEW_BOOK_GENRES.map(g=><option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Volume / Number</label>
+                        <input className="field-input" value={newBookForm.vol||''} onChange={e=>setNewBookForm(f=>({...f,vol:e.target.value}))} placeholder="e.g. Vol. 1" />
+                      </div>
+                    </div>
+                    <div className="two-col" style={{margin:'.75rem 1rem 0'}}>
+                      <div className="field-row">
+                        <label className="field-label">Language</label>
+                        <select className="field-input field-select" value={newBookForm.lang||'EN / FR'} onChange={e=>setNewBookForm(f=>({...f,lang:e.target.value}))}>
+                          <option value="EN / FR">EN / FR</option>
+                          <option value="EN">English only</option>
+                          <option value="EN / FR / ES">EN / FR / ES</option>
+                        </select>
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Status</label>
+                        <select className="field-input field-select" value={newBookForm.available===true?'true':'false'} onChange={e=>setNewBookForm(f=>({...f,available:e.target.value==='true'}))}>
+                          <option value="false">Locked / Forthcoming</option>
+                          <option value="true">Available now</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
+                      <label className="field-label">{newBookForm.available ? 'Price' : 'Expected Release Year'}</label>
+                      <input className="field-input"
+                        value={newBookForm.available ? (newBookForm.price||'') : (newBookForm.release||'')}
+                        onChange={e=>setNewBookForm(f=>newBookForm.available ? {...f,price:e.target.value} : {...f,release:e.target.value})}
+                        placeholder={newBookForm.available ? 'From $15.99' : '2027'} />
+                    </div>
+                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
+                      <label className="field-label">Synopsis (English)</label>
+                      <textarea className="field-input field-textarea" style={{minHeight:60}} value={newBookForm.synopsis||''} onChange={e=>setNewBookForm(f=>({...f,synopsis:e.target.value}))} placeholder="Brief description for readers…" />
+                    </div>
+                    <div style={{display:'flex',justifyContent:'flex-end',padding:'.75rem 1rem'}}>
+                      <button className="btn btn-s btn-sm" disabled={!newBookForm.title} onClick={stageNewBook}>
+                        + Stage This Book
                       </button>
                     </div>
                   </div>
-
-                  <div className="panel" style={{marginTop:'.75rem'}}>
-                    <div className="panel-head" style={{cursor:'pointer'}} onClick={() => setShowEmbeddedAddBook(v => !v)}>
-                      <span className="panel-title">+ Add a Brand New Book to This Series</span>
-                      <span style={{fontSize:12,color:'var(--tx3)'}}>{showEmbeddedAddBook ? '▲ Hide' : '▼ Show'}</span>
-                    </div>
-                    {showEmbeddedAddBook && (
-                      <div className="panel-body" style={{display:'flex',flexDirection:'column',gap:0}}>
-                        <div style={{background:'var(--crp)',border:'1px solid rgba(200,112,112,.25)',borderRadius:6,padding:'.5rem .85rem',margin:'.75rem 1rem 0',display:'flex',alignItems:'center',gap:'.6rem'}}>
-                          <span style={{fontSize:10,fontWeight:700,color:'var(--crb)',letterSpacing:'.1em',textTransform:'uppercase',flexShrink:0}}>Auto Key</span>
-                          <code style={{fontSize:12,color:'var(--crb)'}}>{newBookAutoKey || 'Type a title to generate key…'}</code>
-                        </div>
-                        <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                          <label className="field-label">Title <span style={{color:'var(--crb)'}}>*</span></label>
-                          <input className="field-input" value={newBookForm.title||''} onChange={e=>setNewBookForm(f=>({...f,title:e.target.value}))} placeholder="e.g. The Atlas Protocol: Book 1" />
-                        </div>
-                        <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                          <label className="field-label">Subtitle</label>
-                          <input className="field-input" value={newBookForm.subtitle||''} onChange={e=>setNewBookForm(f=>({...f,subtitle:e.target.value}))} />
-                        </div>
-                        <div className="two-col" style={{margin:'.75rem 1rem 0'}}>
-                          <div className="field-row">
-                            <label className="field-label">Genre</label>
-                            <select className="field-input field-select" value={newBookForm.genre||''} onChange={e=>setNewBookForm(f=>({...f,genre:e.target.value}))}>
-                              <option value="">Select genre…</option>
-                              {NEW_BOOK_GENRES.map(g=><option key={g} value={g}>{g}</option>)}
-                            </select>
-                          </div>
-                          <div className="field-row">
-                            <label className="field-label">Volume / Number</label>
-                            <input className="field-input" value={newBookForm.vol||''} onChange={e=>setNewBookForm(f=>({...f,vol:e.target.value}))} placeholder="e.g. Vol. 1" />
-                          </div>
-                        </div>
-                        <div className="two-col" style={{margin:'.75rem 1rem 0'}}>
-                          <div className="field-row">
-                            <label className="field-label">Language</label>
-                            <select className="field-input field-select" value={newBookForm.lang||'EN / FR'} onChange={e=>setNewBookForm(f=>({...f,lang:e.target.value}))}>
-                              <option value="EN / FR">EN / FR</option>
-                              <option value="EN">English only</option>
-                              <option value="EN / FR / ES">EN / FR / ES</option>
-                            </select>
-                          </div>
-                          <div className="field-row">
-                            <label className="field-label">Status</label>
-                            <select className="field-input field-select" value={newBookForm.available===true?'true':'false'} onChange={e=>setNewBookForm(f=>({...f,available:e.target.value==='true'}))}>
-                              <option value="false">Locked / Forthcoming</option>
-                              <option value="true">Available now</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                          <label className="field-label">{newBookForm.available ? 'Price' : 'Expected Release Year'}</label>
-                          <input className="field-input"
-                            value={newBookForm.available ? (newBookForm.price||'') : (newBookForm.release||'')}
-                            onChange={e=>setNewBookForm(f=>newBookForm.available ? {...f,price:e.target.value} : {...f,release:e.target.value})}
-                            placeholder={newBookForm.available ? 'From $15.99' : '2027'} />
-                        </div>
-                        <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                          <label className="field-label">Synopsis (English)</label>
-                          <textarea className="field-input field-textarea" style={{minHeight:70}} value={newBookForm.synopsis||''} onChange={e=>setNewBookForm(f=>({...f,synopsis:e.target.value}))} placeholder="Brief description for readers…" />
-                        </div>
-                        <div style={{display:'flex',justifyContent:'flex-end',padding:'.75rem 1rem'}}>
-                          <button className="btn btn-p btn-sm" disabled={addingBook || !newBookForm.title} onClick={addNewBookToSeries}>
-                            {addingBook ? <><span className="spinner"/> Adding...</> : 'Add Book to Series'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
             <div className="modal-foot">
-              {!createdSeries ? (
-                <>
-                  <button className="btn btn-s" onClick={closeNewSeries}>Cancel</button>
-                  <button className="btn btn-p" onClick={createSeries} disabled={creatingSeries || !newSeriesForm.name.trim()}>
-                    {creatingSeries ? <><span className="spinner"/> Creating...</> : 'Create Series'}
-                  </button>
-                </>
-              ) : (
-                <button className="btn btn-p" onClick={closeNewSeries}>Done</button>
-              )}
+              <button className="btn btn-s" onClick={closeNewSeries}>Cancel</button>
+              <button className="btn btn-p" onClick={createSeriesWithBooks} disabled={creatingSeries || !newSeriesForm.name.trim()}>
+                {creatingSeries ? <><span className="spinner"/> Creating...</> : 'Create Series'}
+              </button>
             </div>
           </div>
         </div>
