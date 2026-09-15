@@ -95,6 +95,9 @@ export default function Home({ initialSiteLocked = false }) {
           <button type="button" class="tom-link en" onclick="openPodcastModal()">🎙 Listen to this podcast</button>
           <button type="button" class="tom-link fr" onclick="openPodcastModal()">🎙 Écouter ce podcast</button>
           <button type="button" class="tom-link es" onclick="openPodcastModal()">🎙 Escuchar este podcast</button>
+          <a href="/textes/archive" class="tom-link en">See Other Texts →</a>
+          <a href="/textes/archive" class="tom-link fr">Voir les autres textes →</a>
+          <a href="/textes/archive" class="tom-link es">Ver otros textos →</a>
         </div>`;
       el.style.display = 'block';
     }

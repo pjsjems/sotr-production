@@ -427,7 +427,7 @@ export default function TextsScheduleManager() {
               <button className="btn btn-g btn-sm" disabled={busy} onClick={() => publishNow(t)}>🚀 Publish Now</button>
             )}
             <button className="btn btn-s btn-sm" disabled={busy} onClick={() => startScheduling(t)}>📅 Schedule</button>
-            {(status === 'scheduled' || status === 'archived' || status === 'live') && (
+            {!!t.scheduledAt && (
               <button className="btn btn-s btn-sm" disabled={busy} onClick={() => unschedule(t)}>↩ Unschedule</button>
             )}
             <button className={`btn btn-sm ${t.hidden ? 'btn-g' : 'btn-warn'}`} disabled={busy} onClick={() => toggleHidden(t)}>
@@ -510,7 +510,15 @@ export default function TextsScheduleManager() {
                   <label className="field-label">Release Date &amp; Time</label>
                   <input className="field-input" type="datetime-local"
                     value={toDatetimeLocal(textForm.scheduledAt)}
-                    onChange={e => updateTextForm(f => ({ ...f, scheduledAt: e.target.value ? new Date(e.target.value).toISOString() : null }))}/>
+                    onChange={e => updateTextForm(f => {
+                      // Keep publishedAt (the date shown on public pages) in
+                      // sync with scheduledAt (what actually gates visibility)
+                      // so the two never drift apart — matches the dedicated
+                      // Schedule/Publish Now row actions below.
+                      if (!e.target.value) return { ...f, scheduledAt: null, publishedAt: null };
+                      const iso = new Date(e.target.value).toISOString();
+                      return { ...f, scheduledAt: iso, publishedAt: iso.slice(0, 10) };
+                    })}/>
                   <div className="field-hint">Empty = draft, never public.</div>
                 </div>
                 <div className="field-row" style={{ flex:'0 0 auto', marginBottom:0, display:'flex', alignItems:'flex-end' }}>
