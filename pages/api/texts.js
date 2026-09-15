@@ -3,6 +3,7 @@
 // GET  /api/texts?id=slug  : returns preview for one text
 // POST /api/texts          : email gate, returns full text after email capture
 import { readTexts, readMessages, writeMessages, KV_URL, KV_TOKEN } from '../../lib/adminData';
+import { getPublicTexts, withComputedFeatured } from '../../lib/textSchedule';
 
 const FROM_EMAIL      = process.env.FROM_EMAIL || 'noreply@spyontherise.com';
 const SENDER_NAME     = process.env.SENDER_NAME || 'SPY ON THE RISE';
@@ -27,6 +28,16 @@ function sanitize(t, mode = 'preview') {
 async function safeReadTexts() {
   const raw = await readTexts();
   return Array.isArray(raw) ? raw.filter(t => t && typeof t === 'object') : [];
+}
+
+// The only texts the public is allowed to see: scheduled in the past
+// and not hidden, with `featured` computed from the schedule rather
+// than trusted as stored state (see lib/textSchedule.js). Applied to
+// every public-facing read below, including the by-id lookup and the
+// email-gate POST, so a scheduled-for-later or hidden text can't be
+// reached early via a direct/guessed request.
+async function readPublicTexts() {
+  return withComputedFeatured(getPublicTexts(await safeReadTexts()));
 }
 
 // Fetches a text's uploaded PDF/Word attachment for one language, if any
@@ -101,7 +112,7 @@ export default async function handler(req, res) {
   try {
 
   if (req.method === 'GET') {
-    const texts = await safeReadTexts();
+    const texts = await readPublicTexts();
     const { id } = req.query;
     if (id) {
       const t = texts.find(x => x.id === id);
@@ -119,7 +130,7 @@ export default async function handler(req, res) {
     if (!id || !email) return res.status(400).json({ error: 'id and email required' });
     if (!email.includes('@')) return res.status(400).json({ error: 'Invalid email' });
 
-    const texts = await safeReadTexts();
+    const texts = await readPublicTexts();
     const t = texts.find(x => x.id === id);
     if (!t) return res.status(404).json({ error: 'Text not found' });
 

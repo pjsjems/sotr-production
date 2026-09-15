@@ -5,8 +5,11 @@
 // ════════════════════════════════════════════════════════════
 
 import Head from 'next/head';
+import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { PLATFORM_LABELS as PODCAST_PLATFORM_LABELS } from '../../components/textes/PodcastModal';
+import { ADMIN_CSS } from '../../lib/adminCss';
+import { getAdminStatus } from '../../lib/textSchedule';
 
 // ── Bundle Management Component ────────────────────────────
 function BundleAdmin({ toast, books = [] }) {
@@ -1383,10 +1386,6 @@ export default function AdminDashboard() {
   const [lockToggling, setLockToggling] = useState(false);
   const [texts, setTexts] = useState([]);
   const [textsLoading, setTextsLoading] = useState(false);
-  const [editText, setEditText] = useState(null);
-  const [textForm, setTextForm] = useState({});
-  const [textSaving, setTextSaving] = useState(false);
-  const [textTab, setTextTab] = useState('en');
 
   // ── Auth check ──────────────────────────────────────────
   useEffect(() => {
@@ -2129,445 +2128,69 @@ export default function AdminDashboard() {
   }
 
   function renderTexts() {
-    // 9 preset categories, translated so grouping stays consistent while
-    // each language shows its own label. [en, fr, es] per row.
-    const CATEGORY_PRESETS = [
-      ['Geopolitics','Géopolitique','Geopolítica'],
-      ['Social Issues','Enjeux sociaux','Problemas sociales'],
-      ['Human Psychology','Psychologie humaine','Psicología humana'],
-      ['Technology and AI','Technologie et IA','Tecnología e IA'],
-      ['Philosophy and Meaning','Philosophie et sens','Filosofía y sentido'],
-      ['Power and Influence','Pouvoir et influence','Poder e influencia'],
-      ['Culture and Identity','Culture et identité','Cultura e identidad'],
-      ['Economics and Global Trends','Économie et tendances mondiales','Economía y tendencias globales'],
-      ['Modern Relationships','Relations modernes','Relaciones modernas'],
-    ];
-    const CAT_IDX = { en:0, fr:1, es:2 };
-
-    // Drafts autosave to localStorage as the admin types, so the form can
-    // never lose in-progress work — it's only cleared once a real Save
-    // succeeds. "text-draft-new" holds whatever brand-new text is in
-    // progress; existing texts get their own key by id.
-    const NEW_DRAFT_KEY = 'sotr-text-draft-new';
-    const isNewDraft = editText !== null && Object.keys(editText).length === 0;
-    const draftKey = textForm.id ? (isNewDraft ? NEW_DRAFT_KEY : `sotr-text-draft-${textForm.id}`) : null;
-
-    function loadDraft(key) {
-      try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { return null; }
-    }
-    function persistDraft(key, data) {
-      try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
-    }
-    function clearDraft(key) {
-      try { localStorage.removeItem(key); } catch {}
-    }
-    // Every field change goes through this so the draft is always current.
-    function updateTextForm(updater) {
-      setTextForm(f => {
-        const next = typeof updater === 'function' ? updater(f) : updater;
-        persistDraft(draftKey, next);
-        return next;
-      });
-    }
-
-    function openNew() {
-      const draft = loadDraft(NEW_DRAFT_KEY);
-      if (draft && draft.id) {
-        setEditText({});
-        setTextForm(draft);
-        toast('Restored your unsaved draft', 'warning');
-        setTextTab('en');
-        return;
-      }
-      const id = 'text-' + Date.now();
-      const fresh = {
-        id, title_en:'', title_fr:'', title_es:'',
-        subtitle_en:'', subtitle_fr:'', subtitle_es:'',
-        category_en:'', category_fr:'', category_es:'',
-        description_en:'', description_fr:'', description_es:'',
-        preview_en:'', preview_fr:'', preview_es:'',
-        full_en:'', full_fr:'', full_es:'',
-        hasAttachment_en:false, attachmentName_en:'',
-        hasAttachment_fr:false, attachmentName_fr:'',
-        hasAttachment_es:false, attachmentName_es:'',
-        podcastPlatforms: {},
-        author:'Jems S. Pompée', publishedAt: new Date().toISOString().slice(0,10), featured: false,
-      };
-      setEditText({});
-      setTextForm(fresh);
-      persistDraft(NEW_DRAFT_KEY, fresh);
-      setTextTab('en');
-    }
-
-    function openEdit(t) {
-      const key = `sotr-text-draft-${t.id}`;
-      const draft = loadDraft(key);
-      setEditText(t);
-      if (draft) {
-        setTextForm(draft);
-        toast('Restored your unsaved draft for this text', 'warning');
-      } else {
-        // Migrate legacy single-category/single-attachment records so
-        // editing them doesn't lose what was already there.
-        const migrated = {
-          ...t,
-          category_en: t.category_en ?? t.category ?? '',
-          category_fr: t.category_fr ?? '',
-          category_es: t.category_es ?? '',
-          hasAttachment_en: t.hasAttachment_en ?? t.hasAttachment ?? false,
-          attachmentName_en: t.attachmentName_en ?? t.attachmentName ?? '',
-          hasAttachment_fr: t.hasAttachment_fr ?? false,
-          attachmentName_fr: t.attachmentName_fr ?? '',
-          hasAttachment_es: t.hasAttachment_es ?? false,
-          attachmentName_es: t.attachmentName_es ?? '',
-          podcastPlatforms: t.podcastPlatforms || {},
-        };
-        setTextForm(migrated);
-        persistDraft(key, migrated);
-      }
-      setTextTab('en');
-    }
-
-    function discardDraft() {
-      clearDraft(draftKey);
-      setEditText(null);
-    }
-
-    async function saveText() {
-      if (!textForm.id || !textForm.title_en) { toast('Title (EN) is required','error'); return; }
-      // If "+ Add New Category" was opened but never confirmed with "Set",
-      // resolve it here instead of saving the literal "__new__" marker.
-      const payload = { ...textForm };
-      ['en','fr','es'].forEach(l => {
-        if (payload[`category_${l}`] === '__new__') {
-          payload[`category_${l}`] = payload[`customCategory_${l}`] || '';
-        }
-        delete payload[`customCategory_${l}`];
-      });
-      // Empty fields are ignored, only well-formed http(s) links are kept.
-      const podcastPlatforms = {};
-      Object.entries(payload.podcastPlatforms || {}).forEach(([key, url]) => {
-        const trimmed = (url || '').trim();
-        if (!trimmed) return;
-        try {
-          const parsed = new URL(trimmed);
-          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') podcastPlatforms[key] = trimmed;
-        } catch {}
-      });
-      payload.podcastPlatforms = podcastPlatforms;
-      setTextSaving(true);
-      try {
-        const r = await fetch('/api/admin/texts', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ action:'save', text: payload }),
-        });
-        const d = await r.json();
-        if (d.success) {
-          toast('Text saved','success');
-          clearDraft(draftKey);
-          setEditText(null);
-          const r2 = await fetch('/api/admin/texts');
-          const d2 = await r2.json();
-          setTexts(Array.isArray(d2.texts) ? d2.texts : []);
-        } else toast(d.error||'Save failed','error');
-      } catch { toast('Error saving text','error'); }
-      setTextSaving(false);
-    }
-
-    async function featureText(id) {
-      try {
-        await fetch('/api/admin/texts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'feature', id }) });
-        const r = await fetch('/api/admin/texts');
-        const d = await r.json();
-        setTexts(Array.isArray(d.texts) ? d.texts : []);
-        toast('Featured text updated','success');
-      } catch { toast('Error','error'); }
-    }
-
-    async function deleteText(id, title) {
-      if (!confirm(`Delete "${title}"?`)) return;
-      try {
-        await fetch('/api/admin/texts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete', id }) });
-        setTexts(prev => prev.filter(t => t.id !== id));
-        toast('Deleted','success');
-      } catch { toast('Error','error'); }
-    }
-
-    function uploadAttachment(lang, file) {
-      if (!file) return;
-      if (!textForm.id) { toast('Save the text first, then upload the attachment.', 'warning'); return; }
-      const fd = new FormData();
-      fd.append('textId', textForm.id);
-      fd.append('lang', lang);
-      fd.append('attachment', file);
-      toast('Uploading attachment...', 'warning');
-      fetch('/api/admin/upload-text', { method:'POST', body: fd })
-        .then(r => r.json())
-        .then(d => {
-          if (d.success) {
-            toast(`Uploaded: ${d.fileName}`, 'success');
-            updateTextForm(f => ({ ...f, [`hasAttachment_${lang}`]: true, [`attachmentName_${lang}`]: d.fileName }));
-          } else toast(d.error || 'Upload failed', 'error');
-        })
-        .catch(() => toast('Upload failed', 'error'));
-    }
-
-    const LANG_LABELS = { en:'🇬🇧 English', fr:'🇫🇷 French', es:'🇪🇸 Spanish' };
-    const CATEGORY_TITLE_LABEL = { en:'Category (EN)', fr:'Catégorie (FR)', es:'Categoría (ES)' };
-    const ATTACHMENT_LABEL = { en:'Attachment — English (PDF or Word, max 5MB)', fr:'Pièce jointe — Français (PDF ou Word, max 5MB)', es:'Adjunto — Español (PDF o Word, máx. 5MB)' };
-    const FIELDS = {
-      en: [
-        ['title_en','Title (EN)'],
-        ['subtitle_en','Subtitle (EN): optional'],
-        ['description_en','One-line description (EN): shown in archive'],
-        ['preview_en','Preview: first ~25% of text (EN)'],
-        ['full_en','Full text (EN)'],
-      ],
-      fr: [
-        ['title_fr','Titre (FR)'],
-        ['subtitle_fr','Sous-titre (FR): optionnel'],
-        ['description_fr',"Description d'une ligne (FR): affichée dans l'archive"],
-        ['preview_fr','Extrait: premiers ~25% du texte (FR)'],
-        ['full_fr','Texte complet (FR)'],
-      ],
-      es: [
-        ['title_es','Título (ES)'],
-        ['subtitle_es','Subtítulo (ES): opcional'],
-        ['description_es','Descripción de una línea (ES): mostrada en el archivo'],
-        ['preview_es','Extracto: primeros ~25% del texto (ES)'],
-        ['full_es','Texto completo (ES)'],
-      ],
-    };
-
-    const lang = textTab;
-    const catField = `category_${lang}`;
-    const customField = `customCategory_${lang}`;
-    const attField = `hasAttachment_${lang}`;
-    const attNameField = `attachmentName_${lang}`;
-    const catIdx = CAT_IDX[lang] ?? 0;
+    const now = Date.now();
+    const withStatus = texts.map(t => ({ t, status: getAdminStatus(t, texts, now) }));
+    const counts = { live:0, scheduled:0, draft:0, archived:0, hidden:0 };
+    withStatus.forEach(({ status }) => { counts[status] = (counts[status]||0) + 1; });
+    const current = withStatus.find(x => x.status === 'live')?.t;
 
     return (
       <div>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-          <span style={{fontSize:13,color:'var(--tx3)'}}>{texts.length} texts · <a href="/textes" target="_blank" rel="noopener" style={{color:'var(--crb)'}}>View public page →</a></span>
-          <button className="btn btn-p" onClick={openNew}>+ New Text</button>
+          <span style={{fontSize:13,color:'var(--tx3)'}}>{texts.length} text{texts.length!==1?'s':''} total · <a href="/textes" target="_blank" rel="noopener" style={{color:'var(--crb)'}}>View public page →</a></span>
+          <Link href="/admin/texts" className="btn btn-p">📅 Open Texts of the Month Manager →</Link>
         </div>
 
         {textsLoading && <div className="loading-row"><span className="spinner"/> Loading texts...</div>}
 
-        {!textsLoading && texts.length === 0 && (
-          <div className="panel" style={{padding:'2rem',textAlign:'center',color:'var(--tx3)'}}>
-            No texts yet. Click &quot;+ New Text&quot; to add your first Text of the Month.
-          </div>
-        )}
-
-        {!textsLoading && texts.length > 0 && (() => {
-          const featured = texts.find(t => t.featured);
-          const archived = texts.filter(t => !t.featured);
-          const row = t => (
-            <div key={t.id} className="panel" style={{marginBottom:'.75rem'}}>
-              <div style={{display:'flex',alignItems:'center',gap:12,padding:'.85rem 1rem'}}>
-                <span style={{fontSize:18}}>{t.featured ? '⭐' : '📄'}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:600,color:'var(--tx)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title_en}</div>
-                  <div style={{fontSize:11,color:'var(--tx3)'}}>
-                    {(t.category_en || t.category) && `${t.category_en || t.category} · `}{t.publishedAt}
-                    {t.featured && <span style={{marginLeft:6,background:'var(--crp)',color:'var(--crb)',padding:'1px 6px',borderRadius:2,fontSize:10,fontWeight:700}}>FEATURED</span>}
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:6,flexShrink:0}}>
-                  {!t.featured && <button className="btn btn-s btn-sm" onClick={()=>featureText(t.id)} title="Set as Text of the Month">⭐ Feature</button>}
-                  <button className="btn btn-s btn-sm" onClick={()=>openEdit(t)}>✏️ Edit</button>
-                  <button className="btn btn-danger btn-sm" onClick={()=>deleteText(t.id, t.title_en)}>✕</button>
-                </div>
+        {!textsLoading && (
+          <>
+            <div className="stats-row">
+              <div className="stat-card" style={{'--accent':'var(--greenb)'}}>
+                <div className="stat-n">{counts.live||0}</div>
+                <div className="stat-l">Live Now</div>
+              </div>
+              <div className="stat-card" style={{'--accent':'var(--blueb)'}}>
+                <div className="stat-n">{counts.scheduled||0}</div>
+                <div className="stat-l">Scheduled</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-n">{counts.draft||0}</div>
+                <div className="stat-l">Drafts</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-n">{counts.archived||0}</div>
+                <div className="stat-l">Archived</div>
+              </div>
+              <div className="stat-card" style={{'--accent':'var(--redb)'}}>
+                <div className="stat-n">{counts.hidden||0}</div>
+                <div className="stat-l">Hidden</div>
               </div>
             </div>
-          );
-          return (
-            <>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)',marginBottom:'.5rem'}}>
-                ⭐ Current Text of the Month
-              </div>
-              {featured ? row(featured) : (
-                <div className="panel" style={{padding:'1.25rem',textAlign:'center',color:'var(--tx3)',marginBottom:'.75rem',fontSize:13}}>
-                  No text is currently featured. Click &quot;Feature&quot; on one below, or create a new one.
-                </div>
-              )}
 
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)',margin:'1.5rem 0 .5rem'}}>
-                📚 Archived Texts ({archived.length})
-              </div>
-              {archived.length === 0 ? (
-                <div className="panel" style={{padding:'1.25rem',textAlign:'center',color:'var(--tx3)',fontSize:13}}>
-                  Past texts will appear here once a new one is featured.
-                </div>
-              ) : archived.map(row)}
-            </>
-          );
-        })()}
-
-        {/* Edit/Create Modal */}
-        {editText !== null && (
-          <div className="modal-ov open">
-            <div className="modal-box" style={{maxWidth:720}}>
-              <div className="modal-head">
-                <span className="modal-title">{textForm.title_en || 'New Text of the Month'}</span>
-              </div>
-              <div style={{padding:'.6rem 1.5rem 0', fontSize:12, color:'var(--tx3)'}}>
-                Draft auto-saved as you type. Use Save or Cancel below to close this form — clicking outside won&apos;t close it.
-              </div>
-              <div className="modal-body">
-                {/* Meta row */}
-                <div style={{display:'flex',gap:12,marginBottom:'1rem',flexWrap:'wrap'}}>
-                  <div className="field-row" style={{flex:'1 1 160px',marginBottom:0}}>
-                    <label className="field-label">Author</label>
-                    <input className="field-input" value={textForm.author||''} onChange={e=>updateTextForm(f=>({...f,author:e.target.value}))}/>
-                  </div>
-                  <div className="field-row" style={{flex:'1 1 140px',marginBottom:0}}>
-                    <label className="field-label">Date</label>
-                    <input className="field-input" type="date" value={textForm.publishedAt||''} onChange={e=>updateTextForm(f=>({...f,publishedAt:e.target.value}))}/>
-                  </div>
-                </div>
-
-                {/* Language tabs — category, attachment and text fields below all follow the active tab */}
-                <div className="tabs" style={{marginBottom:'1rem'}}>
-                  {Object.entries(LANG_LABELS).map(([l,label])=>(
-                    <button key={l} className={`tab-btn${textTab===l?' active':''}`} onClick={()=>setTextTab(l)}>{label}</button>
-                  ))}
-                </div>
-
-                {/* Category — separate value per language */}
-                <div className="field-row">
-                  <label className="field-label">{CATEGORY_TITLE_LABEL[lang]}</label>
-                  {textForm[catField] === '__new__' ? (
-                    <div style={{ display:'flex', gap:8 }}>
-                      <input className="field-input"
-                        placeholder="Type new category name..."
-                        value={textForm[customField] || ''}
-                        onChange={e => { const v = e.target.value; updateTextForm(f => ({ ...f, [customField]: v })); }}
-                      />
-                      <button className="btn btn-s btn-sm"
-                        onClick={() => updateTextForm(f => ({
-                          ...f,
-                          [catField]: f[customField] || '',
-                          [customField]: '',
-                        }))}>
-                        Set
-                      </button>
-                      <button className="btn btn-s btn-sm"
-                        onClick={() => updateTextForm(f => ({ ...f, [catField]: '', [customField]: '' }))}>
-                        Cancel
-                      </button>
+            <div className="panel">
+              <div className="panel-head"><span className="panel-title">⭐ Current Text of the Month</span></div>
+              <div className="panel-body">
+                {current ? (
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <span style={{fontSize:18}}>⭐</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{current.title_en}</div>
+                      <div style={{fontSize:11,color:'var(--tx3)'}}>live since {new Date(current.scheduledAt||current.publishedAt).toLocaleString()}</div>
                     </div>
-                  ) : (
-                    <select className="field-input field-select"
-                      value={textForm[catField] || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        updateTextForm(f => {
-                          const next = { ...f, [catField]: val };
-                          // Convenience: prefill the other two languages with the
-                          // matching translated preset if they're still empty.
-                          if (val !== '__new__') {
-                            const idx = CATEGORY_PRESETS.findIndex(row => row[catIdx] === val);
-                            if (idx >= 0) {
-                              ['en','fr','es'].forEach((l2, i) => {
-                                const otherField = `category_${l2}`;
-                                if (l2 !== lang && !f[otherField]) next[otherField] = CATEGORY_PRESETS[idx][i];
-                              });
-                            }
-                          }
-                          return next;
-                        });
-                      }}>
-                      <option value="">Select a category...</option>
-                      {CATEGORY_PRESETS.map(row => (
-                        <option key={row[catIdx]} value={row[catIdx]}>{row[catIdx]}</option>
-                      ))}
-                      <option value="__new__">+ Add New Category</option>
-                    </select>
-                  )}
-                </div>
-
-                {/* Attachment — separate file slot per language */}
-                <div className="field-row">
-                  <label className="field-label">{ATTACHMENT_LABEL[lang]}</label>
-                  <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-                    {textForm[attField] && (
-                      <a href={`/api/texts/download?id=${textForm.id}&lang=${lang}`}
-                        target="_blank" rel="noopener"
-                        className="btn btn-s btn-sm">
-                        Download: {textForm[attNameField] || 'File'}
-                      </a>
-                    )}
-                    <input type="file" accept=".pdf,.doc,.docx"
-                      id={`text-attachment-input-${lang}`}
-                      style={{ display:'none' }}
-                      onChange={e => {
-                        const file = e.target.files[0];
-                        uploadAttachment(lang, file);
-                        e.target.value = '';
-                      }}
-                    />
-                    <button className="btn btn-s btn-sm"
-                      onClick={() => document.getElementById(`text-attachment-input-${lang}`).click()}>
-                      {textForm[attField] ? 'Replace File' : 'Upload PDF or Word'}
-                    </button>
                   </div>
-                  <div className="field-hint">
-                    Save the text first before uploading an attachment. Each language keeps its own file.
-                  </div>
-                </div>
-
-                {(FIELDS[textTab]||[]).map(([field, label])=>(
-                  <div className="field-row" key={field}>
-                    <label className="field-label">{label}</label>
-                    {field.startsWith('preview') || field.startsWith('full')
-                      ? <textarea className="field-input field-textarea" style={{minHeight: field.startsWith('full') ? 200 : 100}}
-                          value={textForm[field]||''} onChange={e=>updateTextForm(f=>({...f,[field]:e.target.value}))}
-                          placeholder={field.startsWith('preview') ? 'Paste the first ~25% of the text here' : 'Paste the complete text here'}/>
-                      : <input className="field-input" value={textForm[field]||''} onChange={e=>updateTextForm(f=>({...f,[field]:e.target.value}))}/>
-                    }
-                    {field.startsWith('preview') && <div className="field-hint">{(textForm[field]||'').length} chars, aim for 400-800 chars</div>}
-                    {field.startsWith('full') && <div className="field-hint">{(textForm[field]||'').length} chars total</div>}
-                  </div>
-                ))}
-
-                {/* Podcast platform links — shared across all languages */}
-                <div className="field-row">
-                  <label className="field-label">🎙 Podcast Platforms</label>
-                  <div className="field-hint" style={{marginBottom:'.5rem'}}>
-                    Paste a link for any platform this text&apos;s podcast episode is on. Leave blank to hide a platform from the &quot;Listen to this podcast&quot; menu.
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:'.6rem'}}>
-                    {Object.entries(PODCAST_PLATFORM_LABELS).map(([key,label])=>(
-                      <div key={key} style={{display:'flex',flexDirection:'column',gap:2}}>
-                        <label style={{fontSize:11,color:'var(--tx3)'}}>{label}</label>
-                        <input className="field-input" type="url" placeholder="https://..."
-                          value={(textForm.podcastPlatforms||{})[key] || ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            updateTextForm(f => ({ ...f, podcastPlatforms: { ...(f.podcastPlatforms||{}), [key]: val } }));
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="modal-foot">
-                <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--tx2)',marginRight:'auto',cursor:'pointer'}}>
-                  <input type="checkbox" checked={!!textForm.featured} onChange={e=>updateTextForm(f=>({...f,featured:e.target.checked}))} style={{accentColor:'var(--crb)',width:15,height:15}}/>
-                  Set as Text of the Month (featured)
-                </label>
-                <button className="btn btn-s" onClick={discardDraft} title="Close and delete this unsaved draft">Discard Draft</button>
-                <button className="btn btn-s" onClick={()=>setEditText(null)} title="Close, keeping your progress as a draft">Cancel (Keep as Draft)</button>
-                <button className="btn btn-p" onClick={saveText} disabled={textSaving}>
-                  {textSaving ? <><span className="spinner"/> Saving...</> : 'Save Text'}
-                </button>
+                ) : (
+                  <span style={{color:'var(--tx3)',fontSize:13}}>No text is currently live. Schedule one from the manager.</span>
+                )}
               </div>
             </div>
-          </div>
+
+            {texts.length === 0 && (
+              <div className="panel" style={{padding:'2rem',textAlign:'center',color:'var(--tx3)'}}>
+                No texts yet. Open the manager to add your first Text of the Month.
+              </div>
+            )}
+          </>
         )}
       </div>
     );
@@ -3061,106 +2684,3 @@ export default function AdminDashboard() {
     </>
   );
 }
-
-// ── CSS ────────────────────────────────────────────────────
-const ADMIN_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{--bg:#0D0D0D;--surface:#141414;--surface2:#1C1C1C;--surface3:#242424;--border:#2A2A2A;--border2:#333;--cr:#7A1515;--crh:#961A1A;--crp:rgba(122,21,21,.12);--crb:#C87070;--tx:#F0EDE8;--tx2:#B8B0A5;--tx3:#6B6560;--green:#1A7A3A;--greenbg:rgba(26,122,58,.12);--greenb:#4AC77A;--amber:#8A5C00;--amberbg:rgba(138,92,0,.12);--amberb:#D4A820;--blue:#1565C0;--bluebg:rgba(21,101,192,.12);--blueb:#5B9BD4;--red:#8B1A1A;--redbg:rgba(139,26,26,.12);--redb:#E57373;--dp:'Playfair Display',Georgia,serif;--ui:'Source Sans 3',system-ui,sans-serif;--r:8px;--r2:4px}
-  html,body{height:100%;font-family:var(--ui);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.5}
-  a{color:inherit;text-decoration:none}button{cursor:pointer;font-family:var(--ui)}input,textarea,select{font-family:var(--ui)}
-  :focus-visible{outline:2px solid var(--cr);outline-offset:2px}
-  ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-  .admin-shell{display:flex;height:100vh;overflow:hidden}
-  .sidebar{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
-  .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
-  .sb-brand{padding:1.25rem 1.25rem .75rem;border-bottom:1px solid var(--border)}
-  .sb-brand-name{font-family:var(--dp);font-size:15px;font-weight:700;color:var(--tx)}
-  .sb-brand-sub{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--cr);margin-top:1px}
-  .sb-section{padding:.75rem 0}
-  .sb-label{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);padding:.25rem 1.25rem .5rem}
-  .sb-item{display:flex;align-items:center;gap:.6rem;padding:.55rem 1.25rem;font-size:13px;font-weight:500;color:var(--tx2);border-left:2px solid transparent;transition:all .15s;cursor:pointer;border:none;background:none;width:100%;text-align:left}
-  .sb-item:hover{background:var(--surface2);color:var(--tx)}.sb-item.active{background:var(--crp);color:var(--crb);border-left-color:var(--cr)}
-  .sb-icon{width:16px;text-align:center;flex-shrink:0;font-size:14px}
-  .sb-badge{margin-left:auto;background:var(--cr);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px}
-  .sb-divider{height:1px;background:var(--border);margin:.5rem 1.25rem}
-  .sb-footer{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid var(--border)}
-  .sb-user{font-size:12px;color:var(--tx3);margin-bottom:.5rem}
-  .btn-logout{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--tx2);padding:.5rem;border-radius:var(--r2);font-size:12px;font-weight:600;transition:all .15s;cursor:pointer}
-  .btn-logout:hover{border-color:var(--redb);color:var(--redb);background:var(--redbg)}
-  .topbar{height:56px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 1.5rem;gap:1rem;flex-shrink:0}
-  .tb-title{font-family:var(--dp);font-size:18px;font-weight:700;color:var(--tx);flex:1}
-  .tb-sub{font-size:11px;color:var(--tx3);margin-top:1px}
-  .tb-actions{display:flex;gap:.5rem;align-items:center}
-  .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:var(--r2);font-size:12px;font-weight:600;letter-spacing:.04em;border:1px solid transparent;transition:all .15s;white-space:nowrap;cursor:pointer}
-  .btn-p{background:var(--cr);color:#fff;border-color:var(--cr)}.btn-p:hover{background:var(--crh)}.btn-p:disabled{opacity:.5}
-  .btn-s{background:var(--surface2);color:var(--tx2);border-color:var(--border2)}.btn-s:hover{border-color:var(--crb);color:var(--crb)}
-  .btn-g{background:var(--greenbg);color:var(--greenb);border-color:rgba(74,199,122,.25)}.btn-g:hover{background:rgba(26,122,58,.2)}
-  .btn-warn{background:var(--amberbg);color:var(--amberb);border-color:rgba(212,168,32,.25)}.btn-warn:hover{background:rgba(138,92,0,.2)}
-  .btn-danger{background:var(--redbg);color:var(--redb);border-color:rgba(229,115,115,.25)}.btn-danger:hover{background:rgba(139,26,26,.2)}
-  .btn-sm{padding:.3rem .6rem;font-size:11px}.btn-icon{padding:.3rem .4rem;font-size:13px}
-  .content{flex:1;padding:1.5rem;overflow-y:auto}
-  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
-  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem;position:relative;overflow:hidden}
-  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--cr))}
-  .stat-n{font-family:var(--dp);font-size:32px;font-weight:700;color:var(--tx);line-height:1}
-  .stat-l{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-top:.3rem}
-  .stat-sub{font-size:11px;color:var(--tx3);margin-top:.25rem}
-  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-  .tbl{width:100%;border-collapse:collapse}
-  .tbl th{background:var(--surface2);padding:.55rem .85rem;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);text-align:left;white-space:nowrap}
-  .tbl td{padding:.65rem .85rem;border-top:1px solid var(--border);font-size:13px;color:var(--tx2);vertical-align:middle}
-  .tbl tr:hover td{background:rgba(255,255,255,.02)}
-  .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:20px;white-space:nowrap}
-  .badge-avail{background:var(--greenbg);color:var(--greenb)}.badge-locked{background:var(--amberbg);color:var(--amberb)}.badge-genre{background:var(--bluebg);color:var(--blueb)}.badge-series{background:var(--crp);color:var(--crb)}
-  .field-row{margin-bottom:1rem}
-  .field-label{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.35rem}
-  .field-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r2);padding:.55rem .75rem;font-size:13px;color:var(--tx);transition:border-color .15s;outline:none}
-  .field-input:focus{border-color:var(--crb)}
-  .field-textarea{min-height:100px;resize:vertical;line-height:1.65}
-  .field-select{appearance:none;padding-right:2rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B6560'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .7rem center;background-color:var(--surface2)}
-  .field-hint{font-size:11px;color:var(--tx3);margin-top:.3rem}
-  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:1.25rem}
-  .panel-head{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-  .panel-title{font-size:13px;font-weight:600;color:var(--tx)}
-  .panel-body{padding:1rem}
-  .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:1rem}
-  .modal-ov.open{display:flex}
-  .modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:600px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column}
-  .modal-head{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-  .modal-title{font-family:var(--dp);font-size:16px;font-weight:700;color:var(--tx)}
-  .modal-cls{background:none;border:none;color:var(--tx3);font-size:18px;padding:.25rem;border-radius:var(--r2);transition:color .15s;cursor:pointer}
-  .modal-cls:hover{color:var(--tx)}
-  .modal-body{padding:1.25rem;flex:1}
-  .modal-foot{padding:.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:.5rem;justify-content:flex-end;flex-shrink:0;background:var(--surface2)}
-  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.25rem;overflow-x:auto}
-  .tab-btn{background:none;border:none;font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--tx3);padding:.6rem 1rem;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;cursor:pointer}
-  .tab-btn:hover{color:var(--tx)}.tab-btn.active{color:var(--crb);border-bottom-color:var(--cr)}
-  .search-wrap{position:relative}
-  .search-icon{position:absolute;left:.6rem;top:50%;transform:translateY(-50%);color:var(--tx3);pointer-events:none}
-  .search-inp{padding-left:2rem!important;width:220px}
-  .toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:500;display:flex;flex-direction:column;gap:.5rem;pointer-events:none}
-  .toast{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:.7rem 1rem;font-size:13px;color:var(--tx);min-width:240px;max-width:360px;pointer-events:auto;animation:toastIn .25s ease;border-left:3px solid var(--cr)}
-  .toast.success{border-left-color:var(--greenb)}.toast.error{border-left-color:var(--redb)}.toast.warning{border-left-color:var(--amberb)}
-  @keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-  .cover-mini{width:32px;height:48px;border-radius:2px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,.5)}
-  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-  .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .loading-row{display:flex;align-items:center;justify-content:center;gap:.75rem;padding:3rem;color:var(--tx3);font-size:13px}
-  .empty-state{padding:3rem;text-align:center;color:var(--tx3)}
-  .empty-icon{font-size:28px;margin-bottom:.5rem}
-  .avail-toggle{background:none;border:none;padding:0;cursor:pointer;display:inline-flex;align-items:center}
-  .login-page{height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
-  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:2rem;width:100%;max-width:360px}
-  .login-brand{text-align:center;margin-bottom:1.75rem}
-  .login-logo{font-size:28px;color:var(--cr);margin-bottom:.5rem}
-  .login-name{font-family:var(--dp);font-size:20px;font-weight:700;color:var(--tx)}
-  .login-sub{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--tx3);margin-top:3px}
-  .login-error{background:var(--redbg);border:1px solid rgba(229,115,115,.3);color:var(--redb);padding:.6rem .75rem;border-radius:var(--r2);font-size:12px;margin-bottom:.75rem}
-  .login-hint{font-size:11px;color:var(--tx3);margin-top:1rem;line-height:1.7;text-align:center}
-  .login-hint code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:11px;color:var(--crb)}
-  code{font-family:'Consolas','Monaco',monospace;font-size:11px;color:var(--crb)}
-  .success-box{background:var(--greenbg);border:1px solid rgba(74,222,128,.3);color:var(--greenb);padding:.6rem .75rem;border-radius:var(--r2);font-size:12px}
-  .error-box{background:var(--redbg);border:1px solid rgba(229,115,115,.3);color:var(--redb);padding:.6rem .75rem;border-radius:var(--r2);font-size:12px}
-`;
