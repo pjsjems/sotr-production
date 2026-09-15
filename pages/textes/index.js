@@ -2,6 +2,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
+import PodcastModal, { ListenButton } from '../../components/textes/PodcastModal';
 
 const LABELS = {
   en: { section:'Text of the Month', by:'By', preview:'Preview', readMore:'Read the full text', emailPlaceholder:'your@email.com', emailBtn:'Send me the full text', emailHint:'Enter your email to read the full text. We send it once, no spam.', success:'The full text has been sent to your inbox.', errorEmail:'Please enter a valid email address.', errorFetch:'Something went wrong. Please try again.', allTexts:'All Texts', noFeatured:'No featured text this month.', otherTexts:'See Other Texts', recentTitle:'Recent Texts', recentRead:'Read →', noRecent:'', mainPage:'Main Page' },
@@ -20,6 +21,7 @@ export default function TextesPage() {
   const [fullText, setFullText] = useState(null);
   const [recentTexts, setRecentTexts] = useState([]);
   const [requestedId, setRequestedId] = useState(null);
+  const [podcastOpen, setPodcastOpen] = useState(false);
 
   // Runs once: language + the two text lists don't depend on the URL.
   useEffect(() => {
@@ -139,6 +141,12 @@ export default function TextesPage() {
                   {emailMsg && <p style={{textAlign:'center',marginTop:'.75rem',fontSize:13,color:emailMsg===L.success?'#1A5C2A':'#7A1515'}}>{emailMsg}</p>}
                 </div>
               )}
+
+              {/* ── LISTEN TO THIS PODCAST ──────────────── */}
+              <div style={{ textAlign:'center', marginTop:'2rem' }}>
+                <ListenButton lang={lang} onClick={() => setPodcastOpen(true)} />
+              </div>
+              <PodcastModal open={podcastOpen} onClose={() => setPodcastOpen(false)} platforms={featured?.podcastPlatforms} lang={lang} />
 
               {/* ── RECENT TEXTS ─────────────────────── */}
               {recentTexts.length > 0 && (

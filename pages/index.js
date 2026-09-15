@@ -88,9 +88,14 @@ export default function Home({ initialSiteLocked = false }) {
         <div class="tom-label">${label}</div>
         <div class="tom-title">${title}</div>
         ${sub ? `<div class="tom-sub">${sub}</div>` : ''}
-        <a href="/textes" class="tom-link en">Read the text →</a>
-        <a href="/textes" class="tom-link fr">Lire le texte →</a>
-        <a href="/textes" class="tom-link es">Leer el texto →</a>`;
+        <div class="tom-actions">
+          <a href="/textes" class="tom-link en">Read the text →</a>
+          <a href="/textes" class="tom-link fr">Lire le texte →</a>
+          <a href="/textes" class="tom-link es">Leer el texto →</a>
+          <button type="button" class="tom-link en" onclick="openPodcastModal()">🎙 Listen to this podcast</button>
+          <button type="button" class="tom-link fr" onclick="openPodcastModal()">🎙 Écouter ce podcast</button>
+          <button type="button" class="tom-link es" onclick="openPodcastModal()">🎙 Escuchar este podcast</button>
+        </div>`;
       el.style.display = 'block';
     }
 
@@ -239,6 +244,7 @@ const SITE_HTML = `<!-- TOPBAR -->
       <li><span class="nav-link en" onclick="goCatalog()">Catalog</span><span class="nav-link fr" onclick="goCatalog()">Catalogue</span><span class="nav-link es" onclick="goCatalog()">Catálogo</span></li>
       <li><span class="nav-link en" id="nl-series" onclick="showPage('series-list')">Series</span><span class="nav-link fr" onclick="showPage('series-list')">Séries</span><span class="nav-link es" onclick="showPage('series-list')">Series</span></li>
       <li><span class="nav-link en" id="nl-bundles" onclick="showPage('bundles')">Bundles & Deals</span><span class="nav-link fr" onclick="showPage('bundles')">Offres & Lots</span><span class="nav-link es" onclick="showPage('bundles')">Paquetes</span></li>
+      <li><a class="nav-link en" href="/textes/archive">Podcast</a><a class="nav-link fr" href="/textes/archive">Podcast</a><a class="nav-link es" href="/textes/archive">Podcast</a></li>
       <li><span class="nav-link en" onclick="goAbout()">About</span><span class="nav-link fr" onclick="goAbout()">À Propos</span><span class="nav-link es" onclick="goAbout()">Acerca de</span></li>
     </ul>
     <div class="nav-right">
@@ -433,6 +439,19 @@ const SITE_HTML = `<!-- TOPBAR -->
     <p class="search-hint fr">Essayez : "thriller" · "géopolitique" · "Mercer" · "bilingue"</p>
     <p class="search-hint es">Prueba: "thriller" · "geopolítica" · "Mercer" · "bilingüe"</p>
     <div id="search-results"></div>
+  </div>
+</div>
+
+<!-- PODCAST MODAL -->
+<div class="modal-overlay" id="podcast-modal-overlay" onclick="closePodBg(event)">
+  <div class="modal" id="podcast-modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="closePodcastModal()">✕</button>
+    <div style="padding:1.75rem;">
+      <h2 style="font-family:var(--display);font-size:clamp(17px,2.2vw,21px);font-weight:700;color:var(--text-primary);margin:0 0 1.25rem;">
+        <span class="en">Select your platform</span><span class="fr">Choisissez votre plateforme</span><span class="es">Elige tu plataforma</span>
+      </h2>
+      <div id="podcast-platform-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
   </div>
 </div>
 

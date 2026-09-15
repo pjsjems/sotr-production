@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import PodcastModal, { ListenButton } from '../../../components/textes/PodcastModal';
 
 const L = {
   en: { by:'By', readFull:'Read the full text', emailPlaceholder:'your@email.com', emailBtn:'Send me the full text', emailHint:'Enter your email to read the complete text. One-time send, no spam.', success:'The full text is now displayed below.', errorEmail:'Please enter a valid email address.', errorFetch:'Something went wrong. Please try again.', back:'All texts', backFeatured:'Text of the Month', download:'Download PDF', category:'Category' },
@@ -19,6 +20,7 @@ export default function TextReadPage() {
   const [emailMsg, setEmailMsg] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [fullText, setFullText] = useState(null);
+  const [podcastOpen, setPodcastOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('sotr-lang') || 'en';
@@ -148,6 +150,12 @@ export default function TextReadPage() {
               )}
             </div>
           )}
+
+          {/* Listen to this podcast */}
+          <div style={{ marginTop:'2rem', textAlign:'center' }}>
+            <ListenButton lang={lang} onClick={() => setPodcastOpen(true)} />
+          </div>
+          <PodcastModal open={podcastOpen} onClose={() => setPodcastOpen(false)} platforms={text.podcastPlatforms} lang={lang} />
 
           {/* Download attachment if available */}
           {hasAtt && (

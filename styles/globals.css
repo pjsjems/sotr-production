@@ -774,8 +774,15 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
   color: #B8B0A5;
   margin-bottom: 1.5rem;
 }
+.tom-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
 .tom-link {
   display: inline-block;
+  background: transparent;
   font-family: var(--ui, sans-serif);
   font-size: 12px;
   font-weight: 700;
@@ -786,6 +793,7 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
   border: 1px solid rgba(122,21,21,.4);
   border-radius: 4px;
   padding: 8px 20px;
+  cursor: pointer;
   transition: background .15s, border-color .15s;
 }
 .tom-link:hover {

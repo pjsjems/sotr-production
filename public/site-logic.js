@@ -665,6 +665,28 @@ function doSearch(){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    FOOTER CATALOG LINKS
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+const PODCAST_PLATFORM_LABELS={apple:'Apple Podcasts',spotify:'Spotify',amazon:'Amazon Music',iheart:'iHeartRadio',castbox:'Castbox',overcast:'Overcast',pocketcasts:'Pocket Casts',podcastaddict:'Podcast Addict',deezer:'Deezer',playerfm:'Player FM',castro:'Castro',goodpods:'Goodpods',truefans:'TrueFans'};
+function openPodcastModal(){
+  const platforms=(window.__sotrFeaturedText&&window.__sotrFeaturedText.podcastPlatforms)||{};
+  const entries=Object.entries(platforms).filter(([,url])=>!!url);
+  const list=document.getElementById('podcast-platform-list');
+  if(!entries.length){
+    list.innerHTML='<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="en">Podcast links coming soon.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="fr">Liens du podcast bientôt disponibles.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="es">Enlaces del podcast próximamente.</p>';
+  } else {
+    list.innerHTML=entries.map(([key,url])=>`
+      <div class="platform-row">
+        <div class="pr-name">${PODCAST_PLATFORM_LABELS[key]||(key.charAt(0).toUpperCase()+key.slice(1))}</div>
+        <a href="${url}" class="btn-buy" target="_blank" rel="noopener">
+          <span class="en">Listen</span><span class="fr">Écouter</span><span class="es">Escuchar</span>
+        </a>
+      </div>`).join('');
+  }
+  document.getElementById('podcast-modal-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closePodcastModal(){ document.getElementById('podcast-modal-overlay').classList.remove('open'); document.body.style.overflow=''; }
+function closePodBg(e){ if(e.target===document.getElementById('podcast-modal-overlay')) closePodcastModal(); }
+
 function renderFooterLinks(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const keys=['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];

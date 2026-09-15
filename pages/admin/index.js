@@ -6,6 +6,7 @@
 
 import Head from 'next/head';
 import { useState, useEffect, useCallback } from 'react';
+import { PLATFORM_LABELS as PODCAST_PLATFORM_LABELS } from '../../components/textes/PodcastModal';
 
 // ── Bundle Management Component ────────────────────────────
 function BundleAdmin({ toast, books = [] }) {
@@ -2189,6 +2190,7 @@ export default function AdminDashboard() {
         hasAttachment_en:false, attachmentName_en:'',
         hasAttachment_fr:false, attachmentName_fr:'',
         hasAttachment_es:false, attachmentName_es:'',
+        podcastPlatforms: {},
         author:'Jems S. Pompée', publishedAt: new Date().toISOString().slice(0,10), featured: false,
       };
       setEditText({});
@@ -2218,6 +2220,7 @@ export default function AdminDashboard() {
           attachmentName_fr: t.attachmentName_fr ?? '',
           hasAttachment_es: t.hasAttachment_es ?? false,
           attachmentName_es: t.attachmentName_es ?? '',
+          podcastPlatforms: t.podcastPlatforms || {},
         };
         setTextForm(migrated);
         persistDraft(key, migrated);
@@ -2241,6 +2244,17 @@ export default function AdminDashboard() {
         }
         delete payload[`customCategory_${l}`];
       });
+      // Empty fields are ignored, only well-formed http(s) links are kept.
+      const podcastPlatforms = {};
+      Object.entries(payload.podcastPlatforms || {}).forEach(([key, url]) => {
+        const trimmed = (url || '').trim();
+        if (!trimmed) return;
+        try {
+          const parsed = new URL(trimmed);
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') podcastPlatforms[key] = trimmed;
+        } catch {}
+      });
+      payload.podcastPlatforms = podcastPlatforms;
       setTextSaving(true);
       try {
         const r = await fetch('/api/admin/texts', {
@@ -2518,6 +2532,28 @@ export default function AdminDashboard() {
                     {field.startsWith('full') && <div className="field-hint">{(textForm[field]||'').length} chars total</div>}
                   </div>
                 ))}
+
+                {/* Podcast platform links — shared across all languages */}
+                <div className="field-row">
+                  <label className="field-label">🎙 Podcast Platforms</label>
+                  <div className="field-hint" style={{marginBottom:'.5rem'}}>
+                    Paste a link for any platform this text&apos;s podcast episode is on. Leave blank to hide a platform from the &quot;Listen to this podcast&quot; menu.
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:'.6rem'}}>
+                    {Object.entries(PODCAST_PLATFORM_LABELS).map(([key,label])=>(
+                      <div key={key} style={{display:'flex',flexDirection:'column',gap:2}}>
+                        <label style={{fontSize:11,color:'var(--tx3)'}}>{label}</label>
+                        <input className="field-input" type="url" placeholder="https://..."
+                          value={(textForm.podcastPlatforms||{})[key] || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            updateTextForm(f => ({ ...f, podcastPlatforms: { ...(f.podcastPlatforms||{}), [key]: val } }));
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="modal-foot">
                 <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'var(--tx2)',marginRight:'auto',cursor:'pointer'}}>
