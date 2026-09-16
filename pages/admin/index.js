@@ -11,6 +11,20 @@ import { PLATFORM_LABELS as PODCAST_PLATFORM_LABELS } from '../../components/tex
 import { ADMIN_CSS } from '../../lib/adminCss';
 import { getAdminStatus } from '../../lib/textSchedule';
 
+// Preset genres/categories for series — keeps the "Genre Tag" shown on
+// series cards and the series detail page consistent (no "Spy Thriller"
+// vs "Spy-Thriller" drift) while still allowing a one-off custom entry
+// via "+ Add New Genre" for anything not covered here.
+const SERIES_GENRE_PRESETS = [
+  'Geopolitics', 'Geopolitical Theory', 'Espionage Fiction', 'Spy Thriller',
+  'Political Thriller', 'Psychological Thriller', 'Crime Fiction',
+  'Behavioral Sociology', 'Social Essay', 'Socio-Political Essay',
+  'Cultural Criticism', 'Philosophy', 'Technology & Society',
+  'Speculative Fiction', 'Science Fiction', 'Fantasy', 'Horror',
+  'Literary Fiction', 'Historical Fiction', 'Short Stories', 'Essay Collection',
+  'Memoir & Biography', 'Bilingual Poetry', 'Poetry', "Children's Illustrated Fiction",
+];
+
 // ── Bundle Management Component ────────────────────────────
 function BundleAdmin({ toast, books = [] }) {
   const [bundles, setBundles] = useState(null);
@@ -642,11 +656,16 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
 
   async function createSeriesWithBooks() {
     if (!newSeriesForm.name.trim()) { toast('Series name is required', 'error'); return; }
+    // If "+ Add New Genre" was opened but never confirmed with "Set",
+    // resolve it here rather than saving the literal "__new__" marker.
+    const seriesPayload = { ...newSeriesForm };
+    if (seriesPayload.tag === '__new__') seriesPayload.tag = seriesPayload.customTag || '';
+    delete seriesPayload.customTag;
     setCreatingSeries(true);
     try {
       const r = await fetch('/api/admin/book', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add-series', series: newSeriesForm }),
+        body: JSON.stringify({ action: 'add-series', series: seriesPayload }),
       });
       const d = await r.json();
       if (!d.success) { toast(d.error || 'Failed to create series', 'error'); setCreatingSeries(false); return; }
@@ -703,12 +722,17 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
   }, [data]);
 
   async function saveSeries() {
+    // If "+ Add New Genre" was opened but never confirmed with "Set",
+    // resolve it here rather than saving the literal "__new__" marker.
+    const payload = { ...seriesForm };
+    if (payload.tag === '__new__') payload.tag = payload.customTag || '';
+    delete payload.customTag;
     setSeriesSaving(true);
     try {
       const r = await fetch('/api/admin/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update-series', series: seriesForm }),
+        body: JSON.stringify({ action: 'update-series', series: payload }),
       });
       const d = await r.json();
       if (d.success) {
@@ -795,8 +819,28 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                 <input className="field-input" value={seriesForm.name || ''} onChange={e => setSeriesForm(f => ({...f, name:e.target.value}))} />
               </div>
               <div className="field-row">
-                <label className="field-label">Genre Tag</label>
-                <input className="field-input" value={seriesForm.tag || ''} onChange={e => setSeriesForm(f => ({...f, tag:e.target.value}))} />
+                <label className="field-label">Genre / Category</label>
+                {seriesForm.tag === '__new__' ? (
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input className="field-input" autoFocus placeholder="Type new genre..."
+                      value={seriesForm.customTag || ''}
+                      onChange={e => setSeriesForm(f => ({ ...f, customTag: e.target.value }))} />
+                    <button className="btn btn-s btn-sm"
+                      onClick={() => setSeriesForm(f => ({ ...f, tag: f.customTag || '', customTag: '' }))}>Set</button>
+                    <button className="btn btn-s btn-sm"
+                      onClick={() => setSeriesForm(f => ({ ...f, tag: '', customTag: '' }))}>Cancel</button>
+                  </div>
+                ) : (
+                  <select className="field-input field-select" value={seriesForm.tag || ''}
+                    onChange={e => setSeriesForm(f => ({ ...f, tag: e.target.value }))}>
+                    <option value="">Select a genre...</option>
+                    {seriesForm.tag && !SERIES_GENRE_PRESETS.includes(seriesForm.tag) && (
+                      <option value={seriesForm.tag}>{seriesForm.tag} (current)</option>
+                    )}
+                    {SERIES_GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    <option value="__new__">+ Add New Genre</option>
+                  </select>
+                )}
               </div>
               <div className="panel" style={{ marginTop:'.75rem' }}>
                 <div className="panel-head"><span className="panel-title">Books in this series</span></div>
@@ -852,10 +896,25 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                   placeholder="e.g. The Atlas Protocol" />
               </div>
               <div className="field-row">
-                <label className="field-label">Genre Tag</label>
-                <input className="field-input" value={newSeriesForm.tag}
-                  onChange={e => setNewSeriesForm(f => ({...f, tag:e.target.value}))}
-                  placeholder="e.g. Spy Thriller" />
+                <label className="field-label">Genre / Category</label>
+                {newSeriesForm.tag === '__new__' ? (
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input className="field-input" autoFocus placeholder="Type new genre..."
+                      value={newSeriesForm.customTag || ''}
+                      onChange={e => setNewSeriesForm(f => ({ ...f, customTag: e.target.value }))} />
+                    <button className="btn btn-s btn-sm"
+                      onClick={() => setNewSeriesForm(f => ({ ...f, tag: f.customTag || '', customTag: '' }))}>Set</button>
+                    <button className="btn btn-s btn-sm"
+                      onClick={() => setNewSeriesForm(f => ({ ...f, tag: '', customTag: '' }))}>Cancel</button>
+                  </div>
+                ) : (
+                  <select className="field-input field-select" value={newSeriesForm.tag}
+                    onChange={e => setNewSeriesForm(f => ({ ...f, tag: e.target.value }))}>
+                    <option value="">Select a genre...</option>
+                    {SERIES_GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    <option value="__new__">+ Add New Genre</option>
+                  </select>
+                )}
               </div>
               <div className="field-row">
                 <label className="field-label">Short Description</label>
