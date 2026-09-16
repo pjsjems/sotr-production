@@ -12,6 +12,20 @@ let SERIES = {};
 let BUNDLES = [];
 let PLATFORMS = {};
 
+// Book/series/bundle text fields are admin-entered (dashboard forms with
+// no format validation) and get interpolated straight into innerHTML
+// template strings all over this file — including inside style="..."
+// attributes (e.g. a cover's color swatch). Escaping at the point of
+// use, for the fields actually reachable from the most-rendered card/
+// cover builders below, closes the highest-traffic stored-XSS surface:
+// a compromised admin session could otherwise plant a payload that
+// fires for every site visitor, not just the admin.
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
 async function loadCatalog() {
   try {
     const r = await fetch('/api/catalog-live');
@@ -96,9 +110,12 @@ function hideSiteLockOverlay() {
 ══════════════════════════════════════ */
 function buildCover(b, size='normal'){
   const fs = size==='small' ? '10px' : size==='mini' ? '8px' : '13px';
+  const title = escapeHtml(b.title);
+  const color = escapeHtml(b.color);
+  const release = escapeHtml(b.release);
 
   const imgHtml = b.image
-    ? `<img src="${b.image}?v=${Date.now()}" alt="${b.title.replace(/"/g,'')}"
+    ? `<img src="${escapeHtml(b.image)}?v=${Date.now()}" alt="${title.replace(/"/g,'')}"
          loading="lazy"
          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"
          onerror="this.style.display='none'">`
@@ -106,40 +123,41 @@ function buildCover(b, size='normal'){
 
   if(!b.available){
     return `<div class="book-cover book-cover-unavail" style="position:relative;">
-      <div class="book-cover-bg" style="background:${b.color};"></div>
+      <div class="book-cover-bg" style="background:${color};"></div>
       ${imgHtml ? `<div style="position:absolute;inset:0;overflow:hidden;border-radius:inherit;">${imgHtml}<div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div></div>` : ''}
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;text-align:center;z-index:2;">
         <div class="unavail-icon">🔒</div>
-        <div class="unavail-label en">${b.release||'Coming Soon'}</div>
-        <div class="unavail-label fr">${b.release||'À Venir'}</div>
-        <div class="unavail-label es">${b.release||'Próximamente'}</div>
-        <div style="font-family:var(--display);font-size:${fs};font-weight:700;color:rgba(255,255,255,0.75);margin-top:6px;line-height:1.25;">${b.title}</div>
+        <div class="unavail-label en">${release||'Coming Soon'}</div>
+        <div class="unavail-label fr">${release||'À Venir'}</div>
+        <div class="unavail-label es">${release||'Próximamente'}</div>
+        <div style="font-family:var(--display);font-size:${fs};font-weight:700;color:rgba(255,255,255,0.75);margin-top:6px;line-height:1.25;">${title}</div>
       </div>
-      ${b.release && b.release!=='TBD' ? `<div class="release-banner" style="z-index:3;">${b.release}</div>` : ''}
+      ${release && release!=='TBD' ? `<div class="release-banner" style="z-index:3;">${release}</div>` : ''}
     </div>`;
   }
 
   return `<div class="book-cover" style="position:relative;">
-    <div class="book-cover-bg" style="background:${b.color};"></div>
+    <div class="book-cover-bg" style="background:${color};"></div>
     ${imgHtml ? `<div style="position:absolute;inset:0;overflow:hidden;border-radius:inherit;">${imgHtml}</div>` : ''}
     <div class="book-cover-top" style="position:absolute;top:.7rem;left:.7rem;right:.7rem;z-index:2;">
-      <span class="bc-genre-pill">${b.genre}</span>
+      <span class="bc-genre-pill">${escapeHtml(b.genre)}</span>
     </div>
     <div class="book-cover-overlay" style="z-index:2;">
-      ${!b.image ? `<div class="bc-orn">${b.orn}</div>
-      <div class="bc-title-text" style="font-size:${fs};">${b.title}</div>
-      ${b.subtitle && !b.subtitle.includes('Coming') ? `<div class="bc-subtitle-text">${b.subtitle}</div>` : ''}` : ''}
+      ${!b.image ? `<div class="bc-orn">${escapeHtml(b.orn)}</div>
+      <div class="bc-title-text" style="font-size:${fs};">${title}</div>
+      ${b.subtitle && !b.subtitle.includes('Coming') ? `<div class="bc-subtitle-text">${escapeHtml(b.subtitle)}</div>` : ''}` : ''}
     </div>
   </div>`;
 }
 
 function buildBookCard(b, showVol=false){
-  return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0" aria-label="Open details for ${b.title}">
+  const title = escapeHtml(b.title);
+  return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0" aria-label="Open details for ${title}">
     <div style="position:relative;">${buildCover(b)}</div>
     <div class="book-card-body">
-      <div class="book-card-title">${b.title}</div>
-      <div class="book-card-meta">${b.genre}${showVol && b.vol ? ' · '+b.vol : ''}</div>
-      ${b.available ? `<div class="book-card-price">${b.price}</div>` : `<div class="book-card-coming">${b.price}</div>`}
+      <div class="book-card-title">${title}</div>
+      <div class="book-card-meta">${escapeHtml(b.genre)}${showVol && b.vol ? ' · '+escapeHtml(b.vol) : ''}</div>
+      ${b.available ? `<div class="book-card-price">${escapeHtml(b.price)}</div>` : `<div class="book-card-coming">${escapeHtml(b.price)}</div>`}
     </div>
   </div>`;
 }
@@ -424,15 +442,15 @@ function renderBundles(filter){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const data = filter==='all' ? BUNDLES : BUNDLES.filter(b=>b.types.includes(filter));
   document.getElementById('bundles-grid').innerHTML = data.map(b=>`
-    <div class="bundle-card ${b.isGold?'gold-card':''}" onclick="openBundle('${b.id}')"
+    <div class="bundle-card ${b.isGold?'gold-card':''}" onclick="openBundle('${b.id}')">
       <div class="bc-head">
         <div class="bc-badges"><span class="badge-type ${BADGE_CLASSES[b.badge]||'badge-bundle'}"><span class="en">${BADGE_LABELS[b.badge]?.en||''}</span><span class="fr">${BADGE_LABELS[b.badge]?.fr||''}</span><span class="es">${BADGE_LABELS[b.badge]?.es||''}</span></span></div>
-        <div class="bc-title">${b.title}</div><div class="bc-subtitle">${b.subtitle}</div>
+        <div class="bc-title">${escapeHtml(b.title)}</div><div class="bc-subtitle">${escapeHtml(b.subtitle)}</div>
       </div>
-      <div class="bc-books">${b.books.map(bk=>`<span class="bk-chip">${bk}</span>`).join('')}</div>
+      <div class="bc-books">${b.books.map(bk=>`<span class="bk-chip">${escapeHtml(bk)}</span>`).join('')}</div>
       <div class="bc-foot">
         <div class="bc-foot-row">
-          <div><div class="bc-orig">${b.orig}</div><div class="bc-disc">${b.disc}</div><div class="bc-save ${b.isGold?'gold':''}">${b.save}</div></div>
+          <div><div class="bc-orig">${escapeHtml(b.orig)}</div><div class="bc-disc">${escapeHtml(b.disc)}</div><div class="bc-save ${b.isGold?'gold':''}">${escapeHtml(b.save)}</div></div>
           ${b.timer?`<div class="timer-block"><div class="bc-timer-label en">Ends in</div><div class="bc-timer-label fr">Se termine dans</div><div class="bc-timer-label es">Termina en</div><div class="bc-countdown" id="timer-${b.id}">-</div></div>`:''}
         </div>
         <button class="bc-buy-btn" onclick="event.stopPropagation();openBundle('${b.id}')">
@@ -457,7 +475,7 @@ function openBundle(id) {
   const bookList = b.books.map(bk => `
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
       <span style="color:var(--crimson);font-size:12px;">◆</span>
-      <span style="font-family:var(--body);font-size:14px;color:var(--text-primary);">${bk}</span>
+      <span style="font-family:var(--body);font-size:14px;color:var(--text-primary);">${escapeHtml(bk)}</span>
     </div>`).join('');
 
   const savings = `
@@ -465,9 +483,9 @@ function openBundle(id) {
       <div style="font-family:var(--ui);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">
         <span class="en">Bundle Price</span><span class="fr">Prix du Lot</span><span class="es">Precio del Paquete</span>
       </div>
-      <div style="font-family:var(--display);font-size:36px;font-weight:700;color:var(--crimson);line-height:1;">${b.disc}</div>
-      <div style="font-family:var(--ui);font-size:13px;color:var(--text-muted);text-decoration:line-through;margin-top:4px;">${b.orig}</div>
-      <div style="display:inline-block;margin-top:8px;background:var(--green-bg);color:var(--green);font-family:var(--ui);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${b.save}</div>
+      <div style="font-family:var(--display);font-size:36px;font-weight:700;color:var(--crimson);line-height:1;">${escapeHtml(b.disc)}</div>
+      <div style="font-family:var(--ui);font-size:13px;color:var(--text-muted);text-decoration:line-through;margin-top:4px;">${escapeHtml(b.orig)}</div>
+      <div style="display:inline-block;margin-top:8px;background:var(--green-bg);color:var(--green);font-family:var(--ui);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${escapeHtml(b.save)}</div>
     </div>`;
 
   const timerHtml = b.timer ? `
@@ -518,7 +536,7 @@ function openBundle(id) {
     : '';
 
   document.getElementById('modal-synopsis').innerHTML = `
-    <p style="font-family:var(--body);font-size:15px;line-height:1.8;color:var(--text-secondary);margin-bottom:1.25rem;">${b.subtitle}</p>
+    <p style="font-family:var(--body);font-size:15px;line-height:1.8;color:var(--text-secondary);margin-bottom:1.25rem;">${escapeHtml(b.subtitle)}</p>
     ${timerHtml}
     ${savings}
     <div style="font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">

@@ -46,6 +46,7 @@ export default function Home({ initialSiteLocked = false }) {
           setSiteLocked(locked);
           renderFooterSocials(data?.config?.socialLinks);
           renderFooterTagline(data?.config?.footerTagline);
+          renderHeaderTagline(data?.config?.headerTagline);
 
           const el = document.getElementById('coming-soon-overlay');
           if (!el) return;
@@ -126,6 +127,20 @@ export default function Home({ initialSiteLocked = false }) {
       });
     }
 
+    // ── Header/topbar announcement: admin-managed, falls back to the
+    // hardcoded default text baked into SITE_HTML when a language is
+    // left blank. Uses textContent (not innerHTML) so admin-entered
+    // text can never inject markup — the default's <strong> emphasis
+    // is only present until a language is actually overridden.
+    function renderHeaderTagline(tagline) {
+      if (!tagline) return;
+      const map = { en: 'topbar-en', fr: 'topbar-fr', es: 'topbar-es' };
+      Object.entries(map).forEach(([lang, id]) => {
+        const el = document.getElementById(id);
+        if (el && tagline[lang]) el.textContent = tagline[lang];
+      });
+    }
+
     // ── FIX: Patch setLang to update real body + persist choice ────────
     window.__sotrSetLang = function(l) {
       document.body.setAttribute('data-lang', l);
@@ -170,7 +185,14 @@ export default function Home({ initialSiteLocked = false }) {
     <>
       {COMING_SOON_MODE && (
         <div id="coming-soon-overlay" style={{
-          display:'none',
+          // Bound to the siteLocked state (seeded server-side from
+          // getServerSideProps' resolveComingSoonState call) rather than
+          // hardcoded to 'none' — the hardcoded version meant the very
+          // first render (before client JS ran syncLockState on mount)
+          // always showed the site unlocked, regardless of actual lock
+          // state: a flash of full content on every load while locked,
+          // and full exposure to non-JS visitors and crawlers.
+          display: siteLocked ? 'flex' : 'none',
           position:'fixed', inset:0, zIndex:99999,
           background:'#16110C',
           flexDirection:'column',
@@ -228,9 +250,9 @@ export default function Home({ initialSiteLocked = false }) {
 
 const SITE_HTML = `<!-- TOPBAR -->
 <div class="topbar">
-  <span class="en">First Publication Wave 2026: <strong>Iran: The Laboratory</strong> · The Chess-Go Game · The Teacher's Gun · and more. Pre-orders open.</span>
-  <span class="fr">Première vague de publication 2026 : <strong>L'Iran : Le Laboratoire</strong> · Le Jeu Échecs-Go · Le Fusil du Professeur · et plus. Pré-commandes ouvertes.</span>
-  <span class="es">Primera ola de publicación 2026: <strong>Irán: El Laboratorio</strong> · El Juego Ajedrez-Go · El Fusil del Profesor · y más. Preventas abiertas.</span>
+  <span class="en" id="topbar-en">First Publication Wave 2026: <strong>Iran: The Laboratory</strong> · The Chess-Go Game · The Teacher's Gun · and more. Pre-orders open.</span>
+  <span class="fr" id="topbar-fr">Première vague de publication 2026 : <strong>L'Iran : Le Laboratoire</strong> · Le Jeu Échecs-Go · Le Fusil du Professeur · et plus. Pré-commandes ouvertes.</span>
+  <span class="es" id="topbar-es">Primera ola de publicación 2026: <strong>Irán: El Laboratorio</strong> · El Juego Ajedrez-Go · El Fusil del Profesor · y más. Preventas abiertas.</span>
 </div>
 
 <!-- NAVIGATION -->

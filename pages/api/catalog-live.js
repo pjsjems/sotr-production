@@ -14,6 +14,7 @@ export default async function handler(req, res) {
       config: {
         socialLinks: config.socialLinks || {},
         footerTagline: config.footerTagline || {},
+        headerTagline: config.headerTagline || {},
       },
     });
   } catch (e) { return res.status(500).json({ error: e.message }); }

@@ -69,13 +69,22 @@ export default async function handler(req, res) {
         data: fileBuffer.toString('base64'),
         uploadedAt: new Date().toISOString(),
       };
+      // Upstash's REST API stores whatever bytes the POST body contains,
+      // verbatim — it does not unwrap a {"value": ...} field. Wrapping
+      // the payload in one (as this used to) stores the literal string
+      // '{"value":"[...]"}' instead of the payload, so every read here
+      // (fetchAttachment() in pages/api/texts.js, pages/api/texts/
+      // download.js) silently got back { value: "<json string>" }
+      // instead of { fileName, mimeType, data, uploadedAt } — every
+      // attachment download was broken. POST the payload's JSON text
+      // directly, matching lib/adminData.js's kvSet().
       await fetch(`${kvUrl}/set/${fileKey}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${kvToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ value: JSON.stringify(payload) }),
+        body: JSON.stringify(payload),
       });
 
       // Update the text record with attachment info for this language

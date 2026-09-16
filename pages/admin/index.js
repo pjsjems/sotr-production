@@ -1059,10 +1059,10 @@ function PublishButton({ addToast }) {
       setMsg(d.message);
       setShowMsg(true);
       setTimeout(() => setShowMsg(false), 6000);
-      if (d.success) addToast(d.deployed ? '▲ Published to live site' : '✓ Saved locally', 'success');
-      else addToast(d.message, 'error');
+      if (d.success) addToast(d.deployed ? '▲ Committed and pushed to git' : '✓ Nothing new to commit', 'success');
+      else addToast(d.error || d.message, 'error');
     } catch {
-      addToast('Publish failed: push manually with git push', 'error');
+      addToast('Git commit failed — try `git push` manually from a local checkout', 'error');
     }
     setPublishing(false);
     setCommitMsg('');
@@ -1071,8 +1071,8 @@ function PublishButton({ addToast }) {
   return (
     <div style={{position:'relative'}}>
       <button className="btn btn-p" onClick={() => setShowForm(f => !f)} disabled={publishing}
-        title="Commit & push to GitHub: Vercel auto-deploys">
-        {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Publish to Live'}
+        title="Optional: commit a snapshot to git. Your saved edits are already live — this isn't required. Only works when running the dashboard locally against a real git checkout.">
+        {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Commit Snapshot to Git'}
       </button>
       {showForm && (
         <div style={{
@@ -1082,10 +1082,10 @@ function PublishButton({ addToast }) {
           boxShadow:'0 8px 32px rgba(0,0,0,.4)',
         }}>
           <div style={{fontSize:12,fontWeight:700,color:'var(--tx2)',marginBottom:'.5rem',letterSpacing:'.06em',textTransform:'uppercase'}}>
-            Publish Changes
+            Commit Snapshot to Git
           </div>
           <div style={{fontSize:12,color:'var(--tx3)',marginBottom:'.75rem',lineHeight:1.5}}>
-            What do you want to push to the live site?
+            Your edits are already live on the site — this only commits a backup snapshot to the git repository. Local development only; does nothing when run against the deployed site.
           </div>
           <input className="field-input" placeholder="Optional note about what changed"
             value={commitMsg} onChange={e=>setCommitMsg(e.target.value)}
@@ -1093,16 +1093,16 @@ function PublishButton({ addToast }) {
             style={{marginBottom:'.75rem',fontSize:12}}/>
           <div style={{display:'flex',flexDirection:'column',gap:6}}>
             <button className="btn btn-p" onClick={()=>doPublish('new')} style={{justifyContent:'center'}}>
-              ▲ Publish New Changes Only
+              ▲ Commit New Changes
             </button>
             <button className="btn btn-warn" onClick={()=>doPublish('all')} style={{justifyContent:'center'}}>
-              ↻ Refresh All Live Content
+              ↻ Force Empty Commit
             </button>
             <button className="btn btn-s" onClick={()=>setShowForm(false)} style={{justifyContent:'center'}}>Cancel</button>
           </div>
           <div style={{fontSize:11,color:'var(--tx3)',marginTop:'.6rem',lineHeight:1.5}}>
-            <strong>New Changes:</strong> pushes only what changed since last publish.<br/>
-            <strong>Refresh All:</strong> forces Vercel to redeploy everything (use if public pages look outdated).
+            <strong>Commit New Changes:</strong> stages and commits whatever catalog/text files changed since the last commit.<br/>
+            <strong>Force Empty Commit:</strong> pushes an empty commit to trigger a fresh Vercel deploy (useful for redeploying after an env var change, not for content).
           </div>
         </div>
       )}
@@ -1437,6 +1437,9 @@ export default function AdminDashboard() {
   });
   const [footerMsg, setFooterMsg] = useState(null);
   const [footerSaving, setFooterSaving] = useState(false);
+  const [headerForm, setHeaderForm] = useState({ tagline_en:'', tagline_fr:'', tagline_es:'' });
+  const [headerMsg, setHeaderMsg] = useState(null);
+  const [headerSaving, setHeaderSaving] = useState(false);
   const [showAddTitle, setShowAddTitle] = useState(false);
   const [addForm, setAddForm] = useState({});
   const [addSaving, setAddSaving] = useState(false);
@@ -1494,6 +1497,11 @@ export default function AdminDashboard() {
         tagline_en: cfg.footerTagline?.en || '',
         tagline_fr: cfg.footerTagline?.fr || '',
         tagline_es: cfg.footerTagline?.es || '',
+      });
+      setHeaderForm({
+        tagline_en: cfg.headerTagline?.en || '',
+        tagline_fr: cfg.headerTagline?.fr || '',
+        tagline_es: cfg.headerTagline?.es || '',
       });
     }).catch(()=>{});
   }, [activeSection, auth]);
@@ -1669,6 +1677,24 @@ export default function AdminDashboard() {
     setFooterSaving(false);
   }
 
+  // ── Save header tagline (topbar announcement banner) ─────
+  async function saveHeaderSettings() {
+    setHeaderMsg(null);
+    setHeaderSaving(true);
+    try {
+      const r = await fetch('/api/admin/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          headerTagline: { en: headerForm.tagline_en, fr: headerForm.tagline_fr, es: headerForm.tagline_es },
+        }),
+      });
+      const d = await r.json();
+      if (d.success) setHeaderMsg({ type:'success', text:'Header tagline saved, live in ~10s.' });
+      else setHeaderMsg({ type:'error', text: d.error || 'Save failed.' });
+    } catch { setHeaderMsg({ type:'error', text:'Request failed.' }); }
+    setHeaderSaving(false);
+  }
+
   // ── Restore backup ───────────────────────────────────────
   async function restoreBackup(filename) {
     if (!confirm(`Restore catalog from ${filename}?\nCurrent catalog will be backed up first.`)) return;
@@ -1745,9 +1771,6 @@ export default function AdminDashboard() {
               {loginLoading ? <span className="spinner" /> : 'Sign In'}
             </button>
           </form>
-          <div className="login-hint">
-            Set password via ADMIN_PASSWORD in .env.local
-          </div>
         </div>
       </div>
     </>
@@ -2042,7 +2065,7 @@ export default function AdminDashboard() {
       <div>
         <div className="panel" style={{ marginBottom:'1rem', padding:'.75rem 1rem' }}>
           <span style={{ fontSize:13, color:'var(--tx2)' }}>
-            Click <strong>📝</strong> next to any title to edit its synopsis in all three languages. Changes are saved to <code>data/catalog.js</code> with automatic backup.
+            Click <strong>📝</strong> next to any title to edit its synopsis in all three languages. Changes save immediately and go live within ~10 seconds, with an automatic backup kept before every save.
           </span>
         </div>
         {renderCatalog()}
@@ -2109,7 +2132,7 @@ export default function AdminDashboard() {
             </div>
             <button className="btn btn-p" onClick={changePassword} style={{ marginTop:'.5rem' }}>Update Password</button>
             <p style={{ fontSize:11, color:'var(--tx3)', marginTop:'.75rem', lineHeight:1.5 }}>
-              In production: also update ADMIN_PASSWORD in Vercel Environment Variables.
+              Takes effect immediately — no redeploy or restart needed.
             </p>
           </div>
         </div>
@@ -2161,6 +2184,32 @@ export default function AdminDashboard() {
             </div>
             <button className="btn btn-p" onClick={saveFooterSettings} disabled={footerSaving} style={{marginTop:'.25rem'}}>
               {footerSaving ? <><span className="spinner"/> Saving...</> : 'Save Footer Settings'}
+            </button>
+          </div>
+        </div>
+        <div className="panel" style={{ gridColumn:'1 / -1' }}>
+          <div className="panel-head"><span className="panel-title">Header Announcement (Topbar Tagline)</span></div>
+          <div className="panel-body">
+            <p style={{fontSize:12,color:'var(--tx3)',marginBottom:'1rem',lineHeight:1.6}}>
+              The scrolling announcement line at the very top of the homepage, above the main navigation — currently:
+              <br/><em>&quot;First Publication Wave 2026: Iran: The Laboratory · The Chess-Go Game · The Teacher&apos;s Gun · and more. Pre-orders open.&quot;</em>
+              <br/>Leave a language blank to keep that language&apos;s current text unchanged. Changes go live within ~10 seconds of saving.
+            </p>
+            {headerMsg && <div className={headerMsg.type==='success'?'success-box':'error-box'} style={{marginBottom:'1rem'}}>{headerMsg.text}</div>}
+            <div className="field-row">
+              <label className="field-label">Header Tagline (EN)</label>
+              <input className="field-input" value={headerForm.tagline_en} onChange={e=>setHeaderForm(f=>({...f,tagline_en:e.target.value}))} placeholder="First Publication Wave 2026: Iran: The Laboratory · The Chess-Go Game · The Teacher's Gun · and more. Pre-orders open." />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Header Tagline (FR)</label>
+              <input className="field-input" value={headerForm.tagline_fr} onChange={e=>setHeaderForm(f=>({...f,tagline_fr:e.target.value}))} />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Header Tagline (ES)</label>
+              <input className="field-input" value={headerForm.tagline_es} onChange={e=>setHeaderForm(f=>({...f,tagline_es:e.target.value}))} />
+            </div>
+            <button className="btn btn-p" onClick={saveHeaderSettings} disabled={headerSaving} style={{marginTop:'.25rem'}}>
+              {headerSaving ? <><span className="spinner"/> Saving...</> : 'Save Header Tagline'}
             </button>
           </div>
         </div>

@@ -2,7 +2,7 @@
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import { readSiteConfig, writeSiteConfig } from '../../../lib/adminData';
 
-const ALLOWED_KEYS = ['forwardEmail', 'socialLinks', 'footerTagline'];
+const ALLOWED_KEYS = ['forwardEmail', 'socialLinks', 'footerTagline', 'headerTagline'];
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
