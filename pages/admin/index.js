@@ -8,22 +8,16 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { PLATFORM_LABELS as PODCAST_PLATFORM_LABELS } from '../../components/textes/PodcastModal';
+import ContentAdmin from '../../components/admin/ContentAdmin';
 import { ADMIN_CSS } from '../../lib/adminCss';
 import { getAdminStatus } from '../../lib/textSchedule';
+import { DEFAULT_SITE_CONTENT, normalizeSiteContent, SERIES_CATEGORY_OPTIONS } from '../../lib/siteContent';
 
 // Preset genres/categories for series — keeps the "Genre Tag" shown on
 // series cards and the series detail page consistent (no "Spy Thriller"
 // vs "Spy-Thriller" drift) while still allowing a one-off custom entry
 // via "+ Add New Genre" for anything not covered here.
-const SERIES_GENRE_PRESETS = [
-  'Geopolitics', 'Geopolitical Theory', 'Espionage Fiction', 'Spy Thriller',
-  'Political Thriller', 'Psychological Thriller', 'Crime Fiction',
-  'Behavioral Sociology', 'Social Essay', 'Socio-Political Essay',
-  'Cultural Criticism', 'Philosophy', 'Technology & Society',
-  'Speculative Fiction', 'Science Fiction', 'Fantasy', 'Horror',
-  'Literary Fiction', 'Historical Fiction', 'Short Stories', 'Essay Collection',
-  'Memoir & Biography', 'Bilingual Poetry', 'Poetry', "Children's Illustrated Fiction",
-];
+const SERIES_GENRE_PRESETS = SERIES_CATEGORY_OPTIONS;
 
 // ── Bundle Management Component ────────────────────────────
 function BundleAdmin({ toast, books = [] }) {
@@ -588,9 +582,9 @@ function AddPlatformInline({ type, toast, loadCatalog }) {
 }
 
 // ── Series Management Component ────────────────────────────
-const NEW_BOOK_GENRES = ['Spy Thriller','Behavioral Sociology','Historical Fiction','Geopolitical Theory','Literary Fiction','Speculative Fiction','Social Essay','Socio-Political Essay','Bilingual Poetry',"Children's Illustrated Fiction"];
+const NEW_BOOK_GENRES = SERIES_CATEGORY_OPTIONS;
 
-function SeriesAdmin({ data, toast, loadCatalog }) {
+function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT }) {
   const [editSeries, setEditSeries] = useState(null);
   const [seriesForm, setSeriesForm] = useState({});
   const [seriesSaving, setSeriesSaving] = useState(false);
@@ -711,6 +705,7 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
   }
 
   const seriesList = data?.series || null;
+  const seriesGenreOptions = content.options?.seriesGenres || SERIES_GENRE_PRESETS;
 
   // Keep the open modal's book list/counts fresh after add/remove/refresh.
   useEffect(() => {
@@ -834,10 +829,10 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                   <select className="field-input field-select" value={seriesForm.tag || ''}
                     onChange={e => setSeriesForm(f => ({ ...f, tag: e.target.value }))}>
                     <option value="">Select a genre...</option>
-                    {seriesForm.tag && !SERIES_GENRE_PRESETS.includes(seriesForm.tag) && (
+                    {seriesForm.tag && !seriesGenreOptions.includes(seriesForm.tag) && (
                       <option value={seriesForm.tag}>{seriesForm.tag} (current)</option>
                     )}
-                    {SERIES_GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    {seriesGenreOptions.map(g => <option key={g} value={g}>{g}</option>)}
                     <option value="__new__">+ Add New Genre</option>
                   </select>
                 )}
@@ -911,7 +906,7 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                   <select className="field-input field-select" value={newSeriesForm.tag}
                     onChange={e => setNewSeriesForm(f => ({ ...f, tag: e.target.value }))}>
                     <option value="">Select a genre...</option>
-                    {SERIES_GENRE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    {seriesGenreOptions.map(g => <option key={g} value={g}>{g}</option>)}
                     <option value="__new__">+ Add New Genre</option>
                   </select>
                 )}
@@ -977,7 +972,7 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                         <label className="field-label">Genre</label>
                         <select className="field-input field-select" value={newBookForm.genre||''} onChange={e=>setNewBookForm(f=>({...f,genre:e.target.value}))}>
                           <option value="">Select genre…</option>
-                          {NEW_BOOK_GENRES.map(g=><option key={g} value={g}>{g}</option>)}
+                          {(content.options?.bookGenres || NEW_BOOK_GENRES).map(g=><option key={g} value={g}>{g}</option>)}
                         </select>
                       </div>
                       <div className="field-row">
@@ -989,9 +984,9 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
                       <div className="field-row">
                         <label className="field-label">Language</label>
                         <select className="field-input field-select" value={newBookForm.lang||'EN / FR'} onChange={e=>setNewBookForm(f=>({...f,lang:e.target.value}))}>
-                          <option value="EN / FR">EN / FR</option>
-                          <option value="EN">English only</option>
-                          <option value="EN / FR / ES">EN / FR / ES</option>
+                          {(content.options?.bookLanguages || DEFAULT_SITE_CONTENT.options.bookLanguages).map(option =>
+                            <option key={option.value} value={option.value}>{option.labels.en || option.value}</option>
+                          )}
                         </select>
                       </div>
                       <div className="field-row">
@@ -1037,11 +1032,21 @@ function SeriesAdmin({ data, toast, loadCatalog }) {
 
 // ── Publish to Live Site ───────────────────────────────────
 function PublishButton({ addToast }) {
+  const [gitAvailable, setGitAvailable] = useState(null);
   const [publishing, setPublishing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [commitMsg, setCommitMsg] = useState('');
   const [msg, setMsg] = useState('');
   const [showMsg, setShowMsg] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/admin/publish')
+      .then(r => r.ok ? r.json() : { available: false })
+      .then(d => { if (active) setGitAvailable(d.available === true); })
+      .catch(() => { if (active) setGitAvailable(false); });
+    return () => { active = false; };
+  }, []);
 
   async function doPublish(mode = 'new') {
     setPublishing(true);
@@ -1070,10 +1075,16 @@ function PublishButton({ addToast }) {
 
   return (
     <div style={{position:'relative'}}>
-      <button className="btn btn-p" onClick={() => setShowForm(f => !f)} disabled={publishing}
-        title="Optional: commit a snapshot to git. Your saved edits are already live — this isn't required. Only works when running the dashboard locally against a real git checkout.">
-        {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Commit Snapshot to Git'}
-      </button>
+      {gitAvailable === true ? (
+        <button className="btn btn-p" onClick={() => setShowForm(f => !f)} disabled={publishing}
+          title="Optional: commit a snapshot to git. Your saved edits are already live — this isn't required. Only works when running the dashboard locally against a real git checkout.">
+          {publishing ? <><span className="spinner" /> Publishing...</> : '▲ Commit Snapshot to Git'}
+        </button>
+      ) : (
+        <span style={{fontSize:11,color:'var(--tx3)'}} title="Snapshot commits require a local checkout with Git installed. Admin edits are already saved and live.">
+          {gitAvailable === null ? 'Checking snapshot support…' : 'Snapshot commits require local Git'}
+        </span>
+      )}
       {showForm && (
         <div style={{
           position:'absolute', top:'calc(100% + 8px)', right:0,
@@ -1448,6 +1459,9 @@ export default function AdminDashboard() {
   const [lockToggling, setLockToggling] = useState(false);
   const [texts, setTexts] = useState([]);
   const [textsLoading, setTextsLoading] = useState(false);
+  const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
+  const [contentChrome, setContentChrome] = useState({ headerTagline: {}, footerTagline: {} });
+  const [contentSaving, setContentSaving] = useState(false);
 
   // ── Auth check ──────────────────────────────────────────
   useEffect(() => {
@@ -1540,6 +1554,46 @@ export default function AdminDashboard() {
     setToasts(t => [...t, { id, msg, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   }, []);
+
+  useEffect(() => {
+    if (auth !== true) return;
+    fetch('/api/admin/config')
+      .then(async response => {
+        if (!response.ok) throw new Error(`Content settings request failed (${response.status})`);
+        return response.json();
+      })
+      .then(result => {
+        setSiteContent(normalizeSiteContent(result.config?.content));
+        setContentChrome({
+          headerTagline: result.config?.headerTagline || {},
+          footerTagline: result.config?.footerTagline || {},
+        });
+      })
+      .catch(error => toast(`Failed to load content settings: ${error.message}`, 'error'));
+  }, [auth, activeSection, toast]);
+
+  async function saveContent(content, chrome) {
+    setContentSaving(true);
+    try {
+      const response = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, ...chrome }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || `Save failed (${response.status})`);
+      setSiteContent(normalizeSiteContent(result.config.content));
+      setContentChrome({
+        headerTagline: result.config.headerTagline || {},
+        footerTagline: result.config.footerTagline || {},
+      });
+      toast('Content saved', 'success');
+    } catch (error) {
+      toast(`Failed to save content: ${error.message}`, 'error');
+    } finally {
+      setContentSaving(false);
+    }
+  }
 
   // ── Login ────────────────────────────────────────────────
   async function doLogin(e) {
@@ -2307,7 +2361,8 @@ export default function AdminDashboard() {
   const sections = {
     sitelock: { label:'Site Lock', icon:'🔒', render: () => <SiteLockPanel siteLocked={siteLocked} setSiteLocked={setSiteLocked} toast={toast} /> },
     platforms: { label:'Platforms', icon:'🛒', render: () => <PlatformsAdmin toast={toast} /> },
-    series: { label:'Series', icon:'📖', render: () => <SeriesAdmin data={data} toast={toast} loadCatalog={loadCatalog} /> },
+    series: { label:'Series', icon:'📖', render: () => <SeriesAdmin data={data} toast={toast} loadCatalog={loadCatalog} content={siteContent} /> },
+    content: { label:'Contenu', icon:'✍️', render: () => <ContentAdmin content={siteContent} chrome={contentChrome} onSave={saveContent} saving={contentSaving} /> },
     dashboard: { label:'Dashboard', icon:'⬡', render: renderDashboard },
     catalog: { label:'Catalog', icon:'📚', render: renderCatalog },
     availability: { label:'Availability', icon:'🔓', render: renderAvailability },
@@ -2490,9 +2545,9 @@ export default function AdminDashboard() {
                 <div className="field-row">
                   <label className="field-label">Language</label>
                   <select className="field-input field-select" value={editForm.lang||'EN / FR'} onChange={e => setEditForm(f => ({...f,lang:e.target.value}))}>
-                    <option value="EN / FR">EN / FR</option>
-                    <option value="EN">EN only</option>
-                    <option value="EN / FR / ES">EN / FR / ES</option>
+                    {(siteContent.options?.bookLanguages || DEFAULT_SITE_CONTENT.options.bookLanguages).map(option =>
+                      <option key={option.value} value={option.value}>{option.labels.en || option.value}</option>
+                    )}
                   </select>
                 </div>
                 <div className="field-row">
@@ -2507,15 +2562,9 @@ export default function AdminDashboard() {
                 <div className="field-row">
                   <label className="field-label">Genre</label>
                   <select className="field-input field-select" value={editForm.genre||''} onChange={e => setEditForm(f => ({...f,genre:e.target.value}))}>
-                    <option value="Spy Thriller">Spy Thriller</option>
-                    <option value="Behavioral Sociology">Behavioral Sociology</option>
-                    <option value="Geopolitical Theory">Geopolitical Theory</option>
-                    <option value="Historical Fiction">Historical Fiction</option>
-                    <option value="Literary Fiction">Literary Fiction</option>
-                    <option value="Social Essay">Social Essay</option>
-                    <option value="Socio-Political Essay">Socio-Political Essay</option>
-                    <option value="Speculative Fiction">Speculative Fiction</option>
-                    <option value="Bilingual Poetry">Bilingual Poetry</option>
+                    {(siteContent.options?.bookGenres || DEFAULT_SITE_CONTENT.options.bookGenres).map(genre =>
+                      <option key={genre} value={genre}>{genre}</option>
+                    )}
                   </select>
                 </div>
                 <div className="field-row">
@@ -2689,7 +2738,7 @@ export default function AdminDashboard() {
                   <label className="field-label">Genre</label>
                   <select className="field-input field-select" value={addForm.genre||''} onChange={e=>setAddForm(f=>({...f,genre:e.target.value}))}>
                     <option value="">Select genre…</option>
-                    {['Spy Thriller','Behavioral Sociology','Historical Fiction','Geopolitical Theory','Literary Fiction','Speculative Fiction','Social Essay','Socio-Political Essay','Bilingual Poetry',"Children's Illustrated Fiction"].map(g=><option key={g} value={g}>{g}</option>)}
+                    {(siteContent.options?.bookGenres || DEFAULT_SITE_CONTENT.options.bookGenres).map(g=><option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div className="field-row">
@@ -2707,9 +2756,9 @@ export default function AdminDashboard() {
                 <div className="field-row">
                   <label className="field-label">Language</label>
                   <select className="field-input field-select" value={addForm.lang||'EN / FR'} onChange={e=>setAddForm(f=>({...f,lang:e.target.value}))}>
-                    <option value="EN / FR">EN / FR</option>
-                    <option value="EN">English only</option>
-                    <option value="EN / FR / ES">EN / FR / ES</option>
+                    {(siteContent.options?.bookLanguages || DEFAULT_SITE_CONTENT.options.bookLanguages).map(option =>
+                      <option key={option.value} value={option.value}>{option.labels.en || option.value}</option>
+                    )}
                   </select>
                 </div>
                 <div className="field-row">
@@ -2721,8 +2770,9 @@ export default function AdminDashboard() {
                 <div className="field-row">
                   <label className="field-label">Status</label>
                   <select className="field-input field-select" value={addForm.available===true?'true':'false'} onChange={e=>setAddForm(f=>({...f,available:e.target.value==='true'}))}>
-                    <option value="false">Locked / Forthcoming</option>
-                    <option value="true">Available now</option>
+                    {(siteContent.options?.bookStatuses || DEFAULT_SITE_CONTENT.options.bookStatuses).map(option =>
+                      <option key={option.value} value={option.value}>{option.labels.en || option.value}</option>
+                    )}
                   </select>
                 </div>
                 <div className="field-row">

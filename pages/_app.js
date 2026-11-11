@@ -3,6 +3,7 @@ import Head from 'next/head';
 import '../styles/globals.css';
 import '../styles/textes.css';
 import { Playfair_Display, Source_Sans_3, Source_Serif_4 } from 'next/font/google';
+import ContentOverrides from '../components/ContentOverrides';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -66,6 +67,7 @@ export default function App({ Component, pageProps }) {
       </Head>
       <div className={fontClasses} style={{ display: 'contents' }}>
         <LangContext.Provider value={{ lang, setLang: handleSetLang }}>
+          <ContentOverrides />
           <Component {...pageProps} lang={lang} setLang={handleSetLang} />
         </LangContext.Provider>
       </div>

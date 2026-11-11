@@ -1,4 +1,5 @@
 import { parseCatalog, readSiteLock, readSiteConfig } from '../../lib/adminData';
+import { normalizeSiteContent } from '../../lib/siteContent';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -15,6 +16,7 @@ export default async function handler(req, res) {
         socialLinks: config.socialLinks || {},
         footerTagline: config.footerTagline || {},
         headerTagline: config.headerTagline || {},
+        content: normalizeSiteContent(config.content),
       },
     });
   } catch (e) { return res.status(500).json({ error: e.message }); }

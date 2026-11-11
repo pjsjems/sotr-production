@@ -44,7 +44,7 @@ export default function Home({ initialSiteLocked = false }) {
             envComingSoonMode: COMING_SOON_MODE ? 'true' : 'false',
           });
           setSiteLocked(locked);
-          renderFooterSocials(data?.config?.socialLinks);
+          renderFooterSocials(data?.config?.socialLinks, data?.config?.content?.socialLabels);
           renderFooterTagline(data?.config?.footerTagline);
           renderHeaderTagline(data?.config?.headerTagline);
 
@@ -104,12 +104,12 @@ export default function Home({ initialSiteLocked = false }) {
     }
 
     // ── Footer social links + tagline: driven by admin-managed config ──
-    function renderFooterSocials(social) {
+    function renderFooterSocials(social, labels) {
       const el = document.getElementById('fg-socials');
       if (!el) return;
       const PLATFORMS = [
-        ['instagram', 'IG'], ['x', 'X'], ['linkedin', 'LI'],
-        ['facebook', 'FB'], ['youtube', 'YT'], ['tiktok', 'TT'],
+        ['instagram', labels?.instagram || 'IG'], ['x', labels?.x || 'X'], ['linkedin', labels?.linkedin || 'LI'],
+        ['facebook', labels?.facebook || 'FB'], ['youtube', labels?.youtube || 'YT'], ['tiktok', labels?.tiktok || 'TT'],
       ];
       el.innerHTML = PLATFORMS.map(([key, label]) => {
         const url = (social && social[key]) || '';

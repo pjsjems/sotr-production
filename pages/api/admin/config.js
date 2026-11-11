@@ -1,8 +1,9 @@
 // pages/api/admin/config.js: read/write site config (forwarding email, footer, etc.)
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import { readSiteConfig, writeSiteConfig } from '../../../lib/adminData';
+import { normalizeSiteContent } from '../../../lib/siteContent';
 
-const ALLOWED_KEYS = ['forwardEmail', 'socialLinks', 'footerTagline', 'headerTagline'];
+const ALLOWED_KEYS = ['forwardEmail', 'socialLinks', 'footerTagline', 'headerTagline', 'content'];
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -22,7 +23,9 @@ export default async function handler(req, res) {
     try {
       const cfg = await readSiteConfig();
       for (const key of ALLOWED_KEYS) {
-        if (key in updates) cfg[key] = updates[key];
+        if (key in updates) {
+          cfg[key] = key === 'content' ? normalizeSiteContent(updates[key]) : updates[key];
+        }
       }
       await writeSiteConfig(cfg);
       return res.status(200).json({ success: true, config: cfg });

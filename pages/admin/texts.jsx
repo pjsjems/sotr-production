@@ -20,18 +20,7 @@ import { useState, useEffect } from 'react';
 import { ADMIN_CSS } from '../../lib/adminCss';
 import { getAdminStatus } from '../../lib/textSchedule';
 import { PLATFORM_LABELS as PODCAST_PLATFORM_LABELS } from '../../components/textes/PodcastModal';
-
-const CATEGORY_PRESETS = [
-  ['Geopolitics','Géopolitique','Geopolítica'],
-  ['Social Issues','Enjeux sociaux','Problemas sociales'],
-  ['Human Psychology','Psychologie humaine','Psicología humana'],
-  ['Technology and AI','Technologie et IA','Tecnología e IA'],
-  ['Philosophy and Meaning','Philosophie et sens','Filosofía y sentido'],
-  ['Power and Influence','Pouvoir et influence','Poder e influencia'],
-  ['Culture and Identity','Culture et identité','Cultura e identidad'],
-  ['Economics and Global Trends','Économie et tendances mondiales','Economía y tendencias globales'],
-  ['Modern Relationships','Relations modernes','Relaciones modernas'],
-];
+import { DEFAULT_SITE_CONTENT } from '../../lib/siteContent';
 const CAT_IDX = { en:0, fr:1, es:2 };
 const LANG_LABELS = { en:'🇬🇧 English', fr:'🇫🇷 French', es:'🇪🇸 Spanish' };
 const CATEGORY_TITLE_LABEL = { en:'Category (EN)', fr:'Catégorie (FR)', es:'Categoría (ES)' };
@@ -84,6 +73,7 @@ export default function TextsScheduleManager() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [texts, setTexts] = useState([]);
+  const [textCategories, setTextCategories] = useState(DEFAULT_SITE_CONTENT.options.textCategories);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
 
@@ -107,6 +97,18 @@ export default function TextsScheduleManager() {
       .then(r => r.json())
       .then(d => setAuth(d.authenticated ? true : false))
       .catch(() => setAuth(false));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/content')
+      .then(async response => {
+        if (!response.ok) throw new Error(`Content request failed (${response.status})`);
+        return response.json();
+      })
+      .then(data => {
+        if (Array.isArray(data.content?.options?.textCategories)) setTextCategories(data.content.options.textCategories);
+      })
+      .catch(error => console.error('[admin/texts] Failed to load text categories:', error.message));
   }, []);
 
   function loadTexts() {
@@ -561,11 +563,11 @@ export default function TextsScheduleManager() {
                       updateTextForm(f => {
                         const next = { ...f, [catField]: val };
                         if (val !== '__new__') {
-                          const idx = CATEGORY_PRESETS.findIndex(row2 => row2[catIdx] === val);
+                          const idx = textCategories.findIndex(row2 => row2[catIdx] === val);
                           if (idx >= 0) {
                             ['en','fr','es'].forEach((l2, i) => {
                               const otherField = `category_${l2}`;
-                              if (l2 !== lang && !f[otherField]) next[otherField] = CATEGORY_PRESETS[idx][i];
+                              if (l2 !== lang && !f[otherField]) next[otherField] = textCategories[idx][i];
                             });
                           }
                         }
@@ -573,7 +575,7 @@ export default function TextsScheduleManager() {
                       });
                     }}>
                     <option value="">Select a category...</option>
-                    {CATEGORY_PRESETS.map(row2 => (
+                    {textCategories.map(row2 => (
                       <option key={row2[catIdx]} value={row2[catIdx]}>{row2[catIdx]}</option>
                     ))}
                     <option value="__new__">+ Add New Category</option>
