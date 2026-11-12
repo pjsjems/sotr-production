@@ -216,7 +216,7 @@ function buildBookCard(b, showVol=false){
   const prices = bookTextValues(b, 'prices', b.price || '');
   const volumeLabels = bookTextValues(b, 'volumeLabels', b.vol || '');
   const title = localizedTextMarkup(titles);
-  return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0" aria-label="Open details for ${escapeHtml(titles.en)}">
+  return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0">
     <div style="position:relative;">${buildCover(b)}</div>
     <div class="book-card-body">
       <div class="book-card-title">${title}</div>
@@ -348,7 +348,7 @@ function renderHomeSeriesGrid(){
     const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
     const hasCover = Object.values(covers).some(Boolean);
     return `
-    <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0" aria-label="Explore ${escapeHtml(names.en)}">
+    <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0">
       ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover') : ''}
       <div class="soc-num">${s.num}</div>
       <div class="soc-tag">${escapeHtml(s.tag)}</div>
@@ -366,7 +366,7 @@ function renderHeroMosaic(){
     if(!b) return null;
     const titles = bookTitleValues(b);
     const genres = bookTextValues(b, 'genreLabels', b.genre || '');
-    return `<div class="hero-mini-card" onclick="openBook('${b.key}')" aria-label="${escapeHtml(titles.en)}">
+    return `<div class="hero-mini-card" onclick="openBook('${b.key}')">
       <div class="hero-mini-inner" style="background:${b.color};">
         <div class="hero-mini-content"><div class="hmc-genre">${localizedTextMarkup(genres)}</div><div class="hmc-title">${localizedTextMarkup(titles)}</div><div class="hmc-orn">${escapeHtml(b.orn)}</div></div>
       </div>
