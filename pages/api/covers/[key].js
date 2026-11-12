@@ -9,7 +9,12 @@ export default async function handler(req, res) {
   if (!KV_URL || !KV_TOKEN) return res.status(501).json({ error: 'Storage not configured' });
 
   try {
-    const r = await fetch(`${KV_URL}/get/sotr:book-cover:${key}`, {
+    const entity = ['book', 'series'].includes(req.query.entity) ? req.query.entity : 'book';
+    const language = ['en', 'fr', 'es'].includes(req.query.lang) ? req.query.lang : 'en';
+    const fileKey = entity === 'book' && language === 'en'
+      ? `sotr:book-cover:${key}`
+      : `sotr:${entity}-cover:${key}:${language}`;
+    const r = await fetch(`${KV_URL}/get/${fileKey}`, {
       headers: { Authorization: `Bearer ${KV_TOKEN}` },
     });
     const json = await r.json();

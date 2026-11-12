@@ -366,6 +366,7 @@ nav {
 .series-overview-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); border-color:var(--crimson-border); }
 .series-overview-card:hover::before { height:100%; }
 .soc-num { font-family: var(--display); font-size: 48px; font-weight: 700; color: var(--bg-muted); line-height: 1; margin-bottom: 0.5rem; }
+.soc-cover { width: calc(100% + 3rem); height: 170px; object-fit: cover; display: block; margin: -1.75rem -1.5rem 1rem; }
 .soc-tag { font-family: var(--ui); font-size: 9px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--crimson); margin-bottom: 0.35rem; }
 .soc-name { font-family: var(--display); font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; }
 .soc-desc { font-family: var(--body); font-size: 13px; font-weight: 300; line-height: 1.6; color: var(--text-muted); }
@@ -489,6 +490,7 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
 .sdp-breadcrumb a:hover { color: rgba(255,255,255,0.8); }
 .sdp-breadcrumb span { color: rgba(255,255,255,0.2); }
 .sdp-top { display: grid; grid-template-columns: 1fr auto; gap: 3rem; align-items: start; padding-bottom: 3rem; }
+.sdp-cover-image { display: block; width: min(100%, 340px); max-height: 300px; object-fit: cover; border-radius: var(--r); margin: 0 auto 2rem; }
 .sdp-tag { font-family: var(--ui); font-size: 10px; font-weight: 700; letter-spacing: 0.26em; text-transform: uppercase; color: var(--crimson-border); margin-bottom: 0.5rem; }
 .sdp-title { font-family: var(--display); font-size: clamp(32px,5vw,64px); font-weight: 700; color: #fff; line-height: 1.02; margin-bottom: 0.6rem; }
 .sdp-title em { font-style: italic; color: var(--crimson-border); }

@@ -363,6 +363,7 @@ const SITE_HTML = `<!-- TOPBAR -->
   <div class="sdp-hero">
     <div class="wrap">
       <div class="sdp-breadcrumb" id="sdp-breadcrumb"></div>
+      <div id="sdp-cover"></div>
       <div class="sdp-top">
         <div>
           <p class="sdp-tag" id="sdp-tag"></p>

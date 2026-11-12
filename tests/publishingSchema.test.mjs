@@ -17,6 +17,12 @@ function fixture() {
         title_en: 'The Existing Spy Novel',
         title_fr: 'Le Roman Espion Existant',
         title_es: 'La Novela de Espías Existente',
+        subtitle_en: 'The Case Begins',
+        subtitle_fr: 'L’affaire commence',
+        subtitle_es: 'El caso comienza',
+        image_en: '/covers/spy1-en.webp',
+        image_fr: '/covers/spy1-fr.webp',
+        image_es: '/covers/spy1-es.webp',
         genre: 'Spy Thriller',
         lang: 'EN / FR',
         seriesKey: 'mercer',
@@ -51,6 +57,9 @@ function fixture() {
         key: 'mercer', name: 'The Mercer Files', name_en: 'The Mercer Files',
         name_fr: 'Les Dossiers Mercer', name_es: 'Los Archivos Mercer',
         desc_en: 'English description', desc_fr: 'Description française', desc_es: 'Descripción española',
+        cover_en: '/covers/series-en.webp',
+        cover_fr: '/covers/series-fr.webp',
+        cover_es: '/covers/series-es.webp',
         volumes: ['spy1'],
       },
     },
@@ -81,8 +90,11 @@ test('migration preserves books and legacy values, creates relational data, and 
   assert.equal(first.report.booksMigrated, 2);
   assert.equal(first.catalog.BOOKS.spy1.title, originalSpyBook.title);
   assert.equal(first.catalog.BOOKS.spy1.title_fr, originalSpyBook.title_fr);
+  assert.equal(first.catalog.BOOKS.spy1.subtitle_fr, originalSpyBook.subtitle_fr);
+  assert.equal(first.catalog.BOOKS.spy1.image_es, originalSpyBook.image_es);
   assert.equal(first.catalog.SERIES.mercer.name_fr, 'Les Dossiers Mercer');
   assert.equal(first.catalog.SERIES.mercer.desc_es, 'Descripción española');
+  assert.equal(first.catalog.SERIES.mercer.cover_fr, '/covers/series-fr.webp');
   assert.equal(first.catalog.BOOKS.spy1.image, originalSpyBook.image);
   assert.deepEqual(first.catalog.BOOKS.spy1.links, originalSpyBook.links);
   assert.match(first.catalog.BOOKS.spy1.sotrBookId, /^SOTR-BK-\d{4}$/);

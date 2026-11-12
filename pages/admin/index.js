@@ -37,6 +37,99 @@ function LanguageSubpages({ value, onChange }) {
   );
 }
 
+function LanguageCoverField({ form, setForm, language, fieldPrefix }) {
+  const field = `${fieldPrefix}_${language}`;
+  const fileField = `_coverFile_${language}`;
+  return (
+    <div className="field-row">
+      <label className="field-label">Cover Image · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+      <input type="file" accept="image/jpeg,image/png,image/webp" className="field-input"
+        onChange={event => setForm(current => ({
+          ...current,
+          [fileField]: event.target.files?.[0] || null,
+        }))} />
+      {form[fileField]
+        ? <div className="field-hint">Selected: {form[fileField].name}</div>
+        : form[field]
+          ? <div className="field-hint"><img src={form[field]} alt="" style={{ maxWidth: 100, maxHeight: 140, objectFit: 'cover', display: 'block', marginBottom: 4 }} />Current language cover</div>
+          : <div className="field-hint">No cover selected for this language.</div>}
+    </div>
+  );
+}
+
+function LocalizedBookFields({ form, setForm, language }) {
+  const update = (field, value) => setForm(current => ({
+    ...current,
+    [`${field}_${language}`]: value,
+    ...(language === 'en' ? { [field]: value } : {}),
+  }));
+  return (
+    <>
+      <div className="two-col">
+        <div className="field-row">
+          <label className="field-label">Subtitle · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+          <input className="field-input" value={form[`subtitle_${language}`] ?? (language === 'en' ? form.subtitle || '' : '')}
+            onChange={event => update('subtitle', event.target.value)} />
+        </div>
+        <div className="field-row">
+          <label className="field-label">Genre Display Name · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+          <input className="field-input" value={form[`genre_${language}`] || ''}
+            onChange={event => setForm(current => ({ ...current, [`genre_${language}`]: event.target.value }))}
+            placeholder={form.genre || 'Optional translated label'} />
+        </div>
+      </div>
+      <div className="two-col">
+        <div className="field-row">
+          <label className="field-label">Price Display · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+          <input className="field-input" value={form[`price_${language}`] ?? (language === 'en' ? form.price || '' : '')}
+            onChange={event => update('price', event.target.value)} />
+        </div>
+        <div className="field-row">
+          <label className="field-label">Release Display · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+          <input className="field-input" value={form[`release_${language}`] ?? (language === 'en' ? form.release || '' : '')}
+            onChange={event => update('release', event.target.value)} />
+        </div>
+      </div>
+      <div className="field-row">
+        <label className="field-label">Volume Label · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+        <input className="field-input" value={form[`vol_${language}`] ?? (language === 'en' ? form.vol || '' : '')}
+          onChange={event => update('vol', event.target.value)} />
+      </div>
+      <LanguageCoverField form={form} setForm={setForm} language={language} fieldPrefix="image" />
+      <div className="field-row">
+        <label className="field-label">Synopsis · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+        <textarea className="field-input field-textarea" style={{ minHeight: 75 }}
+          value={form[`synopsis_${language}`] ?? (language === 'en' ? form.synopsis || '' : '')}
+          onChange={event => update('synopsis', event.target.value)} />
+      </div>
+    </>
+  );
+}
+
+function withoutCoverFiles(form) {
+  return Object.fromEntries(Object.entries(form || {}).filter(([field]) => !field.startsWith('_coverFile_')));
+}
+
+async function uploadLocalizedCovers(entityType, entityKey, form) {
+  const uploaded = {};
+  for (const language of EDITOR_LANGUAGES) {
+    const file = form?.[`_coverFile_${language.id}`];
+    if (!file) continue;
+    const body = new FormData();
+    body.append('entityType', entityType);
+    body.append('entityKey', entityKey);
+    body.append('language', language.id);
+    body.append('cover', file);
+    const response = await fetch('/api/admin/upload-image', { method: 'POST', body });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Could not upload ${language.label} cover.`);
+    }
+    uploaded[`${entityType === 'series' ? 'cover' : 'image'}_${language.id}`] = result.image;
+  }
+  return uploaded;
+}
+
 // ── Bundle Management Component ────────────────────────────
 function BundleAdmin({ toast, books = [] }) {
   const [bundles, setBundles] = useState(null);
@@ -683,7 +776,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
     if (!newSeriesForm.name_en.trim()) { toast('English series name is required', 'error'); return; }
     // If "+ Add New Genre" was opened but never confirmed with "Set",
     // resolve it here rather than saving the literal "__new__" marker.
-    const seriesPayload = { ...newSeriesForm, name: newSeriesForm.name_en, desc: newSeriesForm.desc_en };
+    const seriesPayload = { ...withoutCoverFiles(newSeriesForm), name: newSeriesForm.name_en, desc: newSeriesForm.desc_en };
     if (seriesPayload.tag === '__new__') seriesPayload.tag = seriesPayload.customTag || '';
     delete seriesPayload.customTag;
     setCreatingSeries(true);
@@ -697,6 +790,12 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
 
       const seriesKey = d.key, seriesName = d.name;
       let failures = 0;
+      let coverFailures = 0;
+      try {
+        await uploadLocalizedCovers('series', seriesKey, newSeriesForm);
+      } catch {
+        coverFailures++;
+      }
 
       for (const bookKey of selectedExisting) {
         try {
@@ -713,13 +812,18 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
       // catalog's current state, so parallel creates could collide.
       for (const draft of newBookDrafts) {
         try {
-          const { _previewKey, ...bookData } = draft;
+          const { _previewKey, ...stagedBook } = draft;
+          const bookData = withoutCoverFiles(stagedBook);
           const rr = await fetch('/api/admin/add-book', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookData: { ...bookData, series: seriesName, seriesKey } }),
           });
           const dd = await rr.json();
           if (!dd.success) failures++;
+          else {
+            try { await uploadLocalizedCovers('book', dd.key, stagedBook); }
+            catch { coverFailures++; }
+          }
         } catch { failures++; }
       }
 
@@ -729,6 +833,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
       } else {
         toast(`Series "${seriesName}" created, but ${failures} of ${bookCount} books failed to attach — add them via Edit Series`, 'warning');
       }
+      if (coverFailures) toast(`Series created, but ${coverFailures} cover upload${coverFailures > 1 ? 's' : ''} failed. You can retry from Edit Series or the book editor.`, 'error');
       closeNewSeries();
       await loadCatalog();
     } catch { toast('Failed to create series', 'error'); }
@@ -750,7 +855,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
   async function saveSeries() {
     // If "+ Add New Genre" was opened but never confirmed with "Set",
     // resolve it here rather than saving the literal "__new__" marker.
-    const payload = { ...seriesForm, name: seriesForm.name_en, desc: seriesForm.desc_en };
+    const payload = { ...withoutCoverFiles(seriesForm), name: seriesForm.name_en, desc: seriesForm.desc_en };
     if (payload.tag === '__new__') payload.tag = payload.customTag || '';
     delete payload.customTag;
     if (!payload.name_en?.trim()) {
@@ -766,11 +871,13 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
       });
       const d = await r.json();
       if (d.success) {
+        const uploaded = await uploadLocalizedCovers('series', seriesForm.key, seriesForm);
+        if (Object.keys(uploaded).length) setSeriesForm(current => ({ ...current, ...uploaded }));
         toast('Series updated', 'success');
         setEditSeries(null);
         await loadCatalog();
       } else toast(d.error, 'error');
-    } catch { toast('Failed to save series', 'error'); }
+    } catch (error) { toast(error.message || 'Failed to save series', 'error'); }
     setSeriesSaving(false);
   }
 
@@ -839,7 +946,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookData: {
-            ...editSeriesBookForm,
+            ...withoutCoverFiles(editSeriesBookForm),
             title: editSeriesBookForm.title_en.trim(),
             title_en: editSeriesBookForm.title_en.trim(),
             seriesKey: editSeries.key,
@@ -851,7 +958,10 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
       });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.error || 'Could not create book.');
-      toast('Book added to series', 'success');
+      let coverError = '';
+      try { await uploadLocalizedCovers('book', result.key, editSeriesBookForm); }
+      catch (error) { coverError = error.message; }
+      toast(coverError ? `Book created, but its cover could not be uploaded: ${coverError}` : 'Book added to series', coverError ? 'warning' : 'success');
       setEditSeriesBookForm({});
       setShowEditSeriesBook(false);
       await loadCatalog();
@@ -880,6 +990,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                 setSeriesForm({
                   key:s.key, name:s.name, name_en:s.name_en || s.name, name_fr:s.name_fr || '', name_es:s.name_es || '',
                   desc:s.desc || '', desc_en:s.desc_en || s.desc || '', desc_fr:s.desc_fr || '', desc_es:s.desc_es || '',
+                  cover_en:s.cover_en || '', cover_fr:s.cover_fr || '', cover_es:s.cover_es || '',
                   tag:s.tag, hidden:s.hidden === true,
                 });
               }}>
@@ -914,6 +1025,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                     ...(seriesLangTab === 'en' ? { name:e.target.value } : {}),
                   }))} />
               </div>
+              <LanguageCoverField form={seriesForm} setForm={setSeriesForm} language={seriesLangTab} fieldPrefix="cover" />
               <div className="field-row">
                 <label className="field-label">Short Description · {EDITOR_LANGUAGES.find(item => item.id === seriesLangTab)?.label}</label>
                 <textarea className="field-input field-textarea" style={{minHeight:70}}
@@ -990,6 +1102,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                       onChange={event => setEditSeriesBookForm(form => ({
                         ...form, [`title_${editSeriesBookLangTab}`]:event.target.value,
                       }))} placeholder={`Title in ${EDITOR_LANGUAGES.find(item => item.id === editSeriesBookLangTab)?.label}`} />
+                    <LocalizedBookFields form={editSeriesBookForm} setForm={setEditSeriesBookForm} language={editSeriesBookLangTab} />
                     <div className="two-col" style={{marginTop:'.75rem'}}>
                       <div className="field-row">
                         <label className="field-label">Language availability</label>
@@ -1047,6 +1160,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                   }))}
                   placeholder="e.g. The Atlas Protocol" />
               </div>
+              <LanguageCoverField form={newSeriesForm} setForm={setNewSeriesForm} language={newSeriesLangTab} fieldPrefix="cover" />
               <div className="field-row">
                 <label className="field-label">Genre / Category</label>
                 {newSeriesForm.tag === '__new__' ? (
@@ -1125,22 +1239,15 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                         onChange={e=>setNewBookForm(f=>({...f,[`title_${embeddedBookLangTab}`]:e.target.value}))}
                         placeholder="e.g. The Atlas Protocol: Book 1" />
                     </div>
-                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                      <label className="field-label">Subtitle</label>
-                      <input className="field-input" value={newBookForm.subtitle||''} onChange={e=>setNewBookForm(f=>({...f,subtitle:e.target.value}))} />
+                    <div style={{margin:'.75rem 1rem 0'}}>
+                      <LocalizedBookFields form={newBookForm} setForm={setNewBookForm} language={embeddedBookLangTab} />
                     </div>
-                    <div className="two-col" style={{margin:'.75rem 1rem 0'}}>
-                      <div className="field-row">
+                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
                         <label className="field-label">Genre</label>
                         <select className="field-input field-select" value={newBookForm.genre||''} onChange={e=>setNewBookForm(f=>({...f,genre:e.target.value}))}>
                           <option value="">Select genre…</option>
                           {(content.options?.bookGenres || NEW_BOOK_GENRES).map(g=><option key={g} value={g}>{g}</option>)}
                         </select>
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Volume / Number</label>
-                        <input className="field-input" value={newBookForm.vol||''} onChange={e=>setNewBookForm(f=>({...f,vol:e.target.value}))} placeholder="e.g. Vol. 1" />
-                      </div>
                     </div>
                     <div className="two-col" style={{margin:'.75rem 1rem 0'}}>
                       <div className="field-row">
@@ -1158,17 +1265,6 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                           <option value="true">Available now</option>
                         </select>
                       </div>
-                    </div>
-                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                      <label className="field-label">{newBookForm.available ? 'Price' : 'Expected Release Year'}</label>
-                      <input className="field-input"
-                        value={newBookForm.available ? (newBookForm.price||'') : (newBookForm.release||'')}
-                        onChange={e=>setNewBookForm(f=>newBookForm.available ? {...f,price:e.target.value} : {...f,release:e.target.value})}
-                        placeholder={newBookForm.available ? 'From $15.99' : '2027'} />
-                    </div>
-                    <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                      <label className="field-label">Synopsis (English)</label>
-                      <textarea className="field-input field-textarea" style={{minHeight:60}} value={newBookForm.synopsis||''} onChange={e=>setNewBookForm(f=>({...f,synopsis:e.target.value}))} placeholder="Brief description for readers…" />
                     </div>
                     <div style={{display:'flex',justifyContent:'flex-end',padding:'.75rem 1rem'}}>
                       <button className="btn btn-s btn-sm" disabled={!newBookForm.title_en?.trim()} onClick={stageNewBook}>
@@ -1822,15 +1918,16 @@ export default function AdminDashboard() {
       const r = await fetch('/api/admin/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update', key: editBook.key, updates: editForm }),
+        body: JSON.stringify({ action: 'update', key: editBook.key, updates: withoutCoverFiles(editForm) }),
       });
       const d = await r.json();
       if (d.success) {
+        await uploadLocalizedCovers('book', editBook.key, editForm);
         toast('Book updated, live in ~10s', 'success');
         setEditBook(null);
         await loadCatalog();
       } else toast(d.error, 'error');
-    } catch { toast('Failed to save changes', 'error'); }
+    } catch (error) { toast(error.message || 'Failed to save changes', 'error'); }
     setSaving(false);
   }
 
@@ -2310,7 +2407,14 @@ export default function AdminDashboard() {
                       <button className="btn btn-s btn-sm btn-icon" title="Edit book details"
                         onClick={() => { setEditBook(b); setEditTitleLangTab('en'); setEditForm({
                           title:b.title, title_en:b.title_en || b.title, title_fr:b.title_fr || '', title_es:b.title_es || '',
-                          subtitle:b.subtitle, price:b.price, release:b.release, color:b.color, lang:b.lang, genre:b.genre, vol:b.vol, pages:b.pages, series:b.series, seriesKey:b.seriesKey,
+                          subtitle:b.subtitle, subtitle_en:b.subtitle_en || b.subtitle || '', subtitle_fr:b.subtitle_fr || '', subtitle_es:b.subtitle_es || '',
+                          genre_en:b.genre_en || b.genre || '', genre_fr:b.genre_fr || '', genre_es:b.genre_es || '',
+                          price:b.price, price_en:b.price_en || b.price || '', price_fr:b.price_fr || '', price_es:b.price_es || '',
+                          release:b.release, release_en:b.release_en || b.release || '', release_fr:b.release_fr || '', release_es:b.release_es || '',
+                          vol:b.vol, vol_en:b.vol_en || b.vol || '', vol_fr:b.vol_fr || '', vol_es:b.vol_es || '',
+                          synopsis:b.synopsis, synopsis_en:b.synopsis_en || b.synopsis || '', synopsis_fr:b.synopsis_fr || '', synopsis_es:b.synopsis_es || '',
+                          image:b.image, image_en:b.image_en || b.image || '', image_fr:b.image_fr || '', image_es:b.image_es || '',
+                          color:b.color, lang:b.lang, genre:b.genre, pages:b.pages, series:b.series, seriesKey:b.seriesKey,
                           sotrBookId:b.sotrBookId, publishingCategoryId:b.publishingCategoryId, publishingSubcategoryId:b.publishingSubcategoryId,
                           genreIds:b.genreIds, primaryGenreId:b.primaryGenreId, subjectIds:b.subjectIds, primarySubjectId:b.primarySubjectId,
                           contentTypeId:b.contentTypeId, targetAudienceId:b.targetAudienceId, ageRangeMin:b.ageRangeMin, ageRangeMax:b.ageRangeMax,
@@ -2773,42 +2877,6 @@ export default function AdminDashboard() {
               <button className="modal-cls" onClick={() => setEditBook(null)}>✕</button>
             </div>
             <div className="modal-body">
-              {/* Cover Image Upload */}
-              <div className="field-row" style={{marginBottom:'1.25rem'}}>
-                <label className="field-label">Book Cover Image</label>
-                <div style={{display:'flex',gap:'1rem',alignItems:'flex-start'}}>
-                  <div style={{width:80,height:120,borderRadius:4,background:editBook?.color||'#1C1C1C',flexShrink:0,overflow:'hidden',border:'1px solid var(--border2)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',position:'relative'}}
-                    onClick={()=>document.getElementById('cover-upload-input').click()} title="Click to upload cover image">
-                    {editBook?.image
-                      ? <img src={editBook.image} alt="cover" style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                      : <span style={{fontSize:11,color:'rgba(255,255,255,.3)',textAlign:'center',padding:4}}>Click to upload</span>}
-                    <div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(0,0,0,.5)',padding:'3px',textAlign:'center',fontSize:9,color:'rgba(255,255,255,.6)'}}>Upload</div>
-                  </div>
-                  <div style={{flex:1}}>
-                    <input id="cover-upload-input" type="file" accept="image/jpeg,image/png,image/webp" style={{display:'none'}}
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        const fd = new FormData();
-                        fd.append('bookKey', editBook.key);
-                        fd.append('cover', file);
-                        toast('Uploading cover...', 'warning');
-                        try {
-                          const r = await fetch('/api/admin/upload-image', {method:'POST',body:fd});
-                          const d = await r.json();
-                          if (d.success) { toast('Cover uploaded', 'success'); await loadCatalog(); }
-                          else toast(d.error, 'error');
-                        } catch { toast('Upload failed', 'error'); }
-                      }} />
-                    <div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.7}}>
-                      Click the cover preview to upload a new image.<br/>
-                      Accepted: JPG, PNG, WebP. Max 5MB.<br/>
-                      Recommended: 800×1200px (2:3 ratio).
-                    </div>
-                    {editBook?.image && <div style={{marginTop:'.5rem',fontSize:11,color:'var(--tx3)',fontFamily:'monospace'}}>{editBook.image}</div>}
-                  </div>
-                </div>
-              </div>
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Title · {EDITOR_LANGUAGES.find(item => item.id === editTitleLangTab)?.label}</label>
@@ -2819,21 +2887,8 @@ export default function AdminDashboard() {
                       ...(editTitleLangTab === 'en' ? { title:e.target.value } : {}),
                     }))} />
                 </div>
-                <div className="field-row">
-                  <label className="field-label">Subtitle</label>
-                  <input className="field-input" value={editForm.subtitle||''} onChange={e => setEditForm(f => ({...f,subtitle:e.target.value}))} />
-                </div>
               </div>
-              <div className="two-col">
-                <div className="field-row">
-                  <label className="field-label">Price</label>
-                  <input className="field-input" value={editForm.price||''} onChange={e => setEditForm(f => ({...f,price:e.target.value}))} placeholder="From $15.99" />
-                </div>
-                <div className="field-row">
-                  <label className="field-label">Release Year</label>
-                  <input className="field-input" value={editForm.release||''} onChange={e => setEditForm(f => ({...f,release:e.target.value}))} placeholder="2027" />
-                </div>
-              </div>
+              <LocalizedBookFields form={editForm} setForm={setEditForm} language={editTitleLangTab} />
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Language</label>
@@ -3021,11 +3076,8 @@ export default function AdminDashboard() {
                       ...(addTitleLangTab === 'en' ? { title:e.target.value } : {}),
                     }))} placeholder="e.g. The Mercer Files: Book 8" autoFocus />
                 </div>
-                <div className="field-row">
-                  <label className="field-label">Subtitle</label>
-                  <input className="field-input" value={addForm.subtitle||''} onChange={e=>setAddForm(f=>({...f,subtitle:e.target.value}))} placeholder="e.g. The Geneva Exposure" />
-                </div>
               </div>
+              <LocalizedBookFields form={addForm} setForm={setAddForm} language={addTitleLangTab} />
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Genre</label>
@@ -3060,13 +3112,7 @@ export default function AdminDashboard() {
                     )}
                   </select>
                 </div>
-                <div className="field-row">
-                  <label className="field-label">{addForm.available ? 'Price' : 'Expected Release Year'}</label>
-                  <input className="field-input"
-                    value={addForm.available ? (addForm.price||'') : (addForm.release||'')}
-                    onChange={e=>setAddForm(f=>addForm.available ? {...f,price:e.target.value} : {...f,release:e.target.value})}
-                    placeholder={addForm.available ? 'From $15.99' : '2027'} />
-                </div>
+                <div />
               </div>
               <div className="two-col">
                 <div className="field-row">
@@ -3081,11 +3127,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="field-row">
-                <label className="field-label">Synopsis (English)</label>
-                <textarea className="field-input field-textarea" style={{minHeight:80}} value={addForm.synopsis||''} onChange={e=>setAddForm(f=>({...f,synopsis:e.target.value}))} placeholder="Brief description for readers…" />
-                <div className="field-hint">You can add FR and ES synopses later via the 📝 editor.</div>
-              </div>
               <PublishingFields form={addForm} setForm={setAddForm} publishing={data?.publishing} series={data?.series} />
             </div>
             <div className="modal-foot">
@@ -3097,11 +3138,20 @@ export default function AdminDashboard() {
                   const r = await fetch('/api/admin/add-book', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bookData: { ...addForm, title:addForm.title_en.trim(), title_en:addForm.title_en.trim(), key: autoKey } }),
+                    body: JSON.stringify({ bookData: { ...withoutCoverFiles(addForm), title:addForm.title_en.trim(), title_en:addForm.title_en.trim(), key: autoKey } }),
                   });
                   const d = await r.json();
                   if (d.success) {
-                    toast(`"${addForm.title_en}" added to catalog (key: ${d.key})`, 'success');
+                    let coverError = '';
+                    try {
+                      await uploadLocalizedCovers('book', d.key, addForm);
+                    } catch (error) {
+                      coverError = error.message;
+                    }
+                    toast(coverError
+                      ? `"${addForm.title_en}" was added, but its cover could not be uploaded: ${coverError}`
+                      : `"${addForm.title_en}" added to catalog (key: ${d.key})`,
+                    coverError ? 'warning' : 'success');
                     setShowAddTitle(false);
                     setAddForm({});
                     setAutoKey('');

@@ -5,7 +5,7 @@
 // at request time always throws in production. Served back out via
 // pages/api/covers/[key].js.
 import { validateSession, parseCookies } from '../../../lib/adminAuth';
-import { updateBook, KV_URL, KV_TOKEN } from '../../../lib/adminData';
+import { updateBook, updateSeries, KV_URL, KV_TOKEN } from '../../../lib/adminData';
 import formidable from 'formidable';
 import fs from 'fs';
 import os from 'os';
@@ -31,17 +31,25 @@ export default async function handler(req, res) {
   form.parse(req, async (err, fields, files) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const bookKey = Array.isArray(fields.bookKey) ? fields.bookKey[0] : fields.bookKey;
+    const entityKey = (Array.isArray(fields.entityKey) ? fields.entityKey[0] : fields.entityKey)
+      || (Array.isArray(fields.bookKey) ? fields.bookKey[0] : fields.bookKey);
+    const entityType = (Array.isArray(fields.entityType) ? fields.entityType[0] : fields.entityType) || 'book';
+    const language = (Array.isArray(fields.language) ? fields.language[0] : fields.language) || 'en';
     const file = Array.isArray(files.cover) ? files.cover[0] : files.cover;
-    if (!bookKey || !file) return res.status(400).json({ error: 'bookKey and cover file required' });
+    if (!entityKey || !file) return res.status(400).json({ error: 'entityKey and cover file required' });
+    if (!['book', 'series'].includes(entityType)) return res.status(400).json({ error: 'entityType must be book or series' });
+    if (!['en', 'fr', 'es'].includes(language)) return res.status(400).json({ error: 'language must be en, fr, or es' });
+    if (!/^[a-z0-9][a-z0-9-]*$/i.test(entityKey)) return res.status(400).json({ error: 'Invalid entity key' });
 
     try {
       const buffer = fs.readFileSync(file.filepath);
       fs.unlink(file.filepath, () => {}); // best-effort cleanup of the tmp copy
-      const fileKey = `sotr:book-cover:${bookKey}`;
+      const fileKey = entityType === 'book' && language === 'en'
+        ? `sotr:book-cover:${entityKey}`
+        : `sotr:${entityType}-cover:${entityKey}:${language}`;
       const uploadedAt = Date.now();
       const payload = {
-        fileName: file.originalFilename || `${bookKey}.jpg`,
+        fileName: file.originalFilename || `${entityKey}-${language}.jpg`,
         mimeType: file.mimetype || 'image/jpeg',
         data: buffer.toString('base64'),
         uploadedAt: new Date(uploadedAt).toISOString(),
@@ -57,8 +65,13 @@ export default async function handler(req, res) {
       // immutable cache on pages/api/covers/[key].js can't ever serve a
       // stale image after a re-upload — the old URL just stops being
       // referenced anywhere, rather than needing to be invalidated.
-      const imageUrl = `/api/covers/${bookKey}?v=${uploadedAt}`;
-      await updateBook(bookKey, { image: imageUrl });
+      const query = new URLSearchParams({ entity: entityType, lang: language, v: String(uploadedAt) });
+      const imageUrl = `/api/covers/${entityKey}?${query.toString()}`;
+      if (entityType === 'book') {
+        await updateBook(entityKey, { [`image_${language}`]: imageUrl, ...(language === 'en' ? { image: imageUrl } : {}) });
+      } else {
+        await updateSeries({ key: entityKey, [`cover_${language}`]: imageUrl });
+      }
       return res.status(200).json({ success: true, image: imageUrl });
     } catch (e) {
       return res.status(500).json({ error: e.message });

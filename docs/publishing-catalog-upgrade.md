@@ -70,7 +70,7 @@ Create collection records and author/contributor profiles in **Publishing**. Sel
 
 ### Create and manage series
 
-The **Series** form supports English, French and Spanish sub-tabs for the series name and short description. Create a series with books staged in the same form, or create a title directly from an existing series editor. The book editor has one title sub-tab for each language. Book language availability is selected separately and includes each individual language, every language pair and the three-language combination. Series and book visibility can be toggled independently; hiding a series removes it and its books from public catalogue responses, while hiding an individual book removes that title from public pages without deleting its record.
+The **Series** form supports English, French and Spanish sub-tabs for the series name, short description and cover image. Create a series with books staged in the same form, or create a title directly from an existing series editor. Each book-language sub-tab supports a localized title, subtitle, cover, synopsis, genre display label, price/release display and volume label. Book language availability is selected separately and includes each individual language, every language pair and the three-language combination. Series and book visibility can be toggled independently; hiding a series removes it and its books from public catalogue responses, while hiding an individual book removes that title from public pages without deleting its record.
 
 ### Editorial status and storefront behavior
 

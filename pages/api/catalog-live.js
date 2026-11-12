@@ -29,6 +29,8 @@ export default async function handler(req, res) {
       const publishedEditions = editoriallyPublished ? editions.filter(edition => edition.bookKey === key && edition.status === 'published') : [];
       const editionLanguageIds = [...new Set(publishedEditions.flatMap(edition => edition.languageIds || []))];
       const formatIds = [...new Set(publishedEditions.map(edition => edition.formatId).filter(Boolean))];
+      const basePrice = book.price_en || publicBook.price || '';
+      const comingSoon = !book.available && /^coming soon$/i.test(basePrice);
       return [key, {
         key,
         color: publicBook.color,
@@ -39,6 +41,36 @@ export default async function handler(req, res) {
           en: book.title_en || publicBook.title || '',
           fr: book.title_fr || book.title_en || publicBook.title || '',
           es: book.title_es || book.title_en || publicBook.title || '',
+        },
+        subtitles: {
+          en: book.subtitle_en || publicBook.subtitle || '',
+          fr: book.subtitle_fr || book.subtitle_en || publicBook.subtitle || '',
+          es: book.subtitle_es || book.subtitle_en || publicBook.subtitle || '',
+        },
+        genreLabels: {
+          en: book.genre_en || publicBook.genre || '',
+          fr: book.genre_fr || book.genre_en || publicBook.genre || '',
+          es: book.genre_es || book.genre_en || publicBook.genre || '',
+        },
+        prices: {
+          en: basePrice,
+          fr: book.price_fr || (comingSoon ? 'À venir' : basePrice),
+          es: book.price_es || (comingSoon ? 'Próximamente' : basePrice),
+        },
+        releases: {
+          en: book.release_en || publicBook.release || '',
+          fr: book.release_fr || book.release_en || publicBook.release || '',
+          es: book.release_es || book.release_en || publicBook.release || '',
+        },
+        volumeLabels: {
+          en: book.vol_en || publicBook.vol || '',
+          fr: book.vol_fr || book.vol_en || publicBook.vol || '',
+          es: book.vol_es || book.vol_en || publicBook.vol || '',
+        },
+        seriesNames: {
+          en: catalog.SERIES?.[book.seriesKey]?.name_en || catalog.SERIES?.[book.seriesKey]?.name || publicBook.series || '',
+          fr: catalog.SERIES?.[book.seriesKey]?.name_fr || catalog.SERIES?.[book.seriesKey]?.name_en || publicBook.series || '',
+          es: catalog.SERIES?.[book.seriesKey]?.name_es || catalog.SERIES?.[book.seriesKey]?.name_en || publicBook.series || '',
         },
         subtitle: publicBook.subtitle,
         lang: publicBook.lang,
@@ -51,6 +83,11 @@ export default async function handler(req, res) {
         price: publicBook.price,
         release: publicBook.release,
         image: publicBook.image,
+        images: {
+          en: book.image_en || publicBook.image || '',
+          fr: book.image_fr || book.image_en || publicBook.image || '',
+          es: book.image_es || book.image_en || publicBook.image || '',
+        },
         synopsis: publicBook.synopsis,
         synopsis_en: publicBook.synopsis_en,
         synopsis_fr: publicBook.synopsis_fr,
@@ -87,7 +124,17 @@ export default async function handler(req, res) {
           ...stat,
           n: String(index === 0 ? volumes.length : index === 1 ? available : index === 2 ? volumes.length - available : stat?.n ?? ''),
         })) : [];
-        return [key, { ...series, volumes, totalVols: volumes.length, stats }];
+        return [key, {
+          ...series,
+          covers: {
+            en: series.cover_en || '',
+            fr: series.cover_fr || series.cover_en || '',
+            es: series.cover_es || series.cover_en || '',
+          },
+          volumes,
+          totalVols: volumes.length,
+          stats,
+        }];
       }));
     return res.status(200).json({
       BOOKS,
