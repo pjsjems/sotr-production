@@ -27,16 +27,16 @@ function escapeHtml(str) {
   }[c]));
 }
 
-function localizedTextMarkup(values, fallback='') {
+function localizedTextMarkup(values) {
   return ['en', 'fr', 'es'].map(lang =>
-    `<span class="${lang}">${escapeHtml(values?.[lang] || fallback)}</span>`,
+    `<span class="${lang}">${escapeHtml(values?.[lang] || '')}</span>`,
   ).join('');
 }
 
 function localizedImageMarkup(values, fallback, alt, className) {
   return ['en', 'fr', 'es'].map(language => {
-    const image = values?.[language] || fallback || '';
-    const altText = typeof alt === 'object' ? (alt[language] || alt.en || '') : alt;
+    const image = values?.[language] || (language === 'en' ? fallback : '');
+    const altText = typeof alt === 'object' ? (alt[language] || '') : alt;
     return image
       ? `<img class="${className} ${language}" src="${escapeHtml(image)}" alt="${escapeHtml(altText || '')}" loading="lazy">`
       : '';
@@ -46,8 +46,8 @@ function localizedImageMarkup(values, fallback, alt, className) {
 function bookTitleValues(book) {
   return book.titles || {
     en: book.title_en || book.title || '',
-    fr: book.title_fr || book.title_en || book.title || '',
-    es: book.title_es || book.title_en || book.title || '',
+    fr: book.title_fr || '',
+    es: book.title_es || '',
   };
 }
 
@@ -55,17 +55,24 @@ function bookTextValues(book, field, fallback='') {
   const values = book[field] || {};
   return {
     en: values.en || fallback,
-    fr: values.fr || values.en || fallback,
-    es: values.es || values.en || fallback,
+    fr: values.fr || '',
+    es: values.es || '',
   };
 }
 
 function seriesTextValues(series, field) {
-  const legacy = field === 'name' ? series.name : series.desc;
+  const legacy = field === 'name' ? series.name
+    : field === 'desc' ? series.desc
+      : field === 'conceptHead' ? series.conceptHead
+        : series.conceptBody;
+  const values = field === 'name' ? series.names
+    : field === 'desc' ? series.descriptions
+      : field === 'conceptHead' ? series.conceptHeads
+        : series.conceptBodies;
   return {
-    en: series[`${field}_en`] || legacy || '',
-    fr: series[`${field}_fr`] || series[`${field}_en`] || legacy || '',
-    es: series[`${field}_es`] || series[`${field}_en`] || legacy || '',
+    en: values?.en || series[`${field}_en`] || legacy || '',
+    fr: values?.fr || series[`${field}_fr`] || '',
+    es: values?.es || series[`${field}_es`] || '',
   };
 }
 
@@ -155,13 +162,13 @@ function hideSiteLockOverlay() {
 function buildCover(b, size='normal'){
   const fs = size==='small' ? '10px' : size==='mini' ? '8px' : '13px';
   const titles = bookTitleValues(b);
-  const titleMarkup = localizedTextMarkup(titles, titles.en);
+  const titleMarkup = localizedTextMarkup(titles);
   const subtitles = bookTextValues(b, 'subtitles', b.subtitle || '');
   const genreLabels = bookTextValues(b, 'genreLabels', b.genre || '');
   const releases = bookTextValues(b, 'releases', b.release || '');
   const color = escapeHtml(b.color);
   const hasRelease = Object.values(releases).some(value => value && value !== 'TBD');
-  const images = b.images || { en: b.image, fr: b.image, es: b.image };
+  const images = b.images || { en: b.image, fr: '', es: '' };
   const hasAnyImage = Object.values(images).some(Boolean);
   const imgHtml = hasAnyImage
     ? localizedImageMarkup(images, b.image, titles, 'book-cover-image')
@@ -171,7 +178,7 @@ function buildCover(b, size='normal'){
   const coverFallback = ['en', 'fr', 'es'].map(language => images[language] ? '' : `
     <div class="${language}">
       <div class="bc-orn">${escapeHtml(b.orn)}</div>
-      <div class="bc-title-text" style="font-size:${fs};">${escapeHtml(titles[language] || titles.en)}</div>
+      <div class="bc-title-text" style="font-size:${fs};">${escapeHtml(titles[language] || '')}</div>
       ${subtitles[language] ? `<div class="bc-subtitle-text">${escapeHtml(subtitles[language])}</div>` : ''}
     </div>`).join('');
 
@@ -194,7 +201,7 @@ function buildCover(b, size='normal'){
     <div class="book-cover-bg" style="background:${color};"></div>
     ${imgHtml ? `<div style="position:absolute;inset:0;overflow:hidden;border-radius:inherit;">${imgHtml}</div>` : ''}
     <div class="book-cover-top" style="position:absolute;top:.7rem;left:.7rem;right:.7rem;z-index:2;">
-      <span class="bc-genre-pill">${localizedTextMarkup(genreLabels, b.genre)}</span>
+      <span class="bc-genre-pill">${localizedTextMarkup(genreLabels)}</span>
     </div>
     <div class="book-cover-overlay" style="z-index:2;">
       ${coverFallback}
@@ -208,16 +215,16 @@ function buildBookCard(b, showVol=false){
   const genreLabels = bookTextValues(b, 'genreLabels', b.genre || '');
   const prices = bookTextValues(b, 'prices', b.price || '');
   const volumeLabels = bookTextValues(b, 'volumeLabels', b.vol || '');
-  const title = localizedTextMarkup(titles, titles.en);
+  const title = localizedTextMarkup(titles);
   return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0" aria-label="Open details for ${escapeHtml(titles.en)}">
     <div style="position:relative;">${buildCover(b)}</div>
     <div class="book-card-body">
       <div class="book-card-title">${title}</div>
       ${Object.values(subtitles).some(Boolean) ? `<div class="book-card-meta">${localizedTextMarkup(subtitles)}</div>` : ''}
       ${b.authors?.length ? `<div class="book-card-meta">${b.authors.map(escapeHtml).join(', ')}</div>` : ''}
-      <div class="book-card-meta">${localizedTextMarkup(genreLabels, b.genre)}${showVol && b.vol ? ` · ${localizedTextMarkup(volumeLabels, b.vol)}` : ''}</div>
+      <div class="book-card-meta">${localizedTextMarkup(genreLabels)}${showVol && b.vol ? ` · ${localizedTextMarkup(volumeLabels)}` : ''}</div>
       ${b.publishingSubcategory ? `<div class="book-card-meta">${escapeHtml(b.publishingCategory)} · ${escapeHtml(b.publishingSubcategory)}</div>` : ''}
-      ${b.available ? `<div class="book-card-price">${localizedTextMarkup(prices, b.price)}</div>` : `<div class="book-card-coming">${localizedTextMarkup(prices, b.price)}</div>`}
+      ${b.available ? `<div class="book-card-price">${localizedTextMarkup(prices)}</div>` : `<div class="book-card-coming">${localizedTextMarkup(prices)}</div>`}
     </div>
   </div>`;
 }
@@ -338,15 +345,15 @@ function renderHomeSeriesGrid(){
   document.getElementById('home-series-grid').innerHTML = Object.values(SERIES).map(s=>{
     const names = seriesTextValues(s, 'name');
     const descriptions = seriesTextValues(s, 'desc');
-    const covers = s.covers || { en: s.cover_en, fr: s.cover_en, es: s.cover_en };
+    const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
     const hasCover = Object.values(covers).some(Boolean);
     return `
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0" aria-label="Explore ${escapeHtml(names.en)}">
       ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover') : ''}
       <div class="soc-num">${s.num}</div>
       <div class="soc-tag">${escapeHtml(s.tag)}</div>
-      <div class="soc-name">${localizedTextMarkup(names, names.en)}</div>
-      <div class="soc-desc">${localizedTextMarkup(descriptions, descriptions.en)}</div>
+      <div class="soc-name">${localizedTextMarkup(names)}</div>
+      <div class="soc-desc">${localizedTextMarkup(descriptions)}</div>
       <div class="soc-count">${s.totalVols} <span class="en">volumes</span><span class="fr">volumes</span><span class="es">volúmenes</span> · EN/FR <span class="soc-arrow">→</span></div>
     </div>`;}).join('');
 }
@@ -361,7 +368,7 @@ function renderHeroMosaic(){
     const genres = bookTextValues(b, 'genreLabels', b.genre || '');
     return `<div class="hero-mini-card" onclick="openBook('${b.key}')" aria-label="${escapeHtml(titles.en)}">
       <div class="hero-mini-inner" style="background:${b.color};">
-        <div class="hero-mini-content"><div class="hmc-genre">${localizedTextMarkup(genres, b.genre)}</div><div class="hmc-title">${localizedTextMarkup(titles, titles.en)}</div><div class="hmc-orn">${escapeHtml(b.orn)}</div></div>
+        <div class="hero-mini-content"><div class="hmc-genre">${localizedTextMarkup(genres)}</div><div class="hmc-title">${localizedTextMarkup(titles)}</div><div class="hmc-orn">${escapeHtml(b.orn)}</div></div>
       </div>
     </div>`;
   }).filter(Boolean).join('');
@@ -391,15 +398,15 @@ function renderSeriesListPage(){
   document.getElementById('series-list-grid').innerHTML = Object.values(SERIES).map(s=>{
     const names = seriesTextValues(s, 'name');
     const descriptions = seriesTextValues(s, 'desc');
-    const covers = s.covers || { en: s.cover_en, fr: s.cover_en, es: s.cover_en };
+    const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
     const hasCover = Object.values(covers).some(Boolean);
     return `
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0">
       ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover') : ''}
       <div class="soc-num">${escapeHtml(s.num)}</div>
       <div class="soc-tag">${escapeHtml(s.tag)}</div>
-      <div class="soc-name">${localizedTextMarkup(names, names.en)}</div>
-      <div class="soc-desc">${localizedTextMarkup(descriptions, descriptions.en)}</div>
+      <div class="soc-name">${localizedTextMarkup(names)}</div>
+      <div class="soc-desc">${localizedTextMarkup(descriptions)}</div>
       <div class="soc-count">${s.totalVols} <span class="en">volumes · Explore →</span><span class="fr">volumes · Explorer →</span><span class="es">volúmenes · Explorar →</span></div>
     </div>`;}).join('');
 }
@@ -419,8 +426,8 @@ function openBook(key){
   const seriesNames = bookTextValues(b, 'seriesNames', b.series || '');
   // Cover in modal header
   document.getElementById('modal-cover-box').innerHTML = buildCover(b,'small');
-  document.getElementById('mh-genre').innerHTML = localizedTextMarkup(genreLabels, b.genre);
-  document.getElementById('mh-title').innerHTML = localizedTextMarkup(titles, titles.en);
+  document.getElementById('mh-genre').innerHTML = localizedTextMarkup(genreLabels);
+  document.getElementById('mh-title').innerHTML = localizedTextMarkup(titles);
   document.getElementById('mh-subtitle').innerHTML = localizedTextMarkup(subtitles);
   document.getElementById('mh-meta').innerHTML = `<span>${escapeHtml(b.lang || '')}</span><span style="margin:0 5px;opacity:.25;">·</span><span>${escapeHtml(b.pages || '')}</span><span style="margin:0 5px;opacity:.25;">·</span>${localizedTextMarkup(seriesNames)}${b.vol ? `<span style="margin:0 5px;opacity:.25;">·</span>${localizedTextMarkup(volumeLabels)}` : ''}`;
   // Unavailable notice + email signup
@@ -450,19 +457,21 @@ function openBook(key){
       </div>`
     : '';
   // Synopsis
-  document.getElementById('modal-synopsis').innerHTML = localizedTextMarkup({
-    en: b.synopsis_en || b.synopsis || '',
-    fr: b.synopsis_fr || b.synopsis_en || b.synopsis || '',
-    es: b.synopsis_es || b.synopsis_en || b.synopsis || '',
-  });
+  document.getElementById('modal-synopsis').innerHTML = localizedTextMarkup(
+    b.synopses || {
+      en: b.synopsis_en || b.synopsis || '',
+      fr: b.synopsis_fr || '',
+      es: b.synopsis_es || '',
+    },
+  );
   const detailFields = [
     b.publishingCategory ? [['Publishing Category','Catégorie éditoriale','Categoría editorial'], escapeHtml(b.publishingCategory)] : null,
     b.publishingSubcategory ? [['Subcategory','Sous-catégorie','Subcategoría'], escapeHtml(b.publishingSubcategory)] : null,
-    b.genre  ? [['Genre','Genre','Género'], localizedTextMarkup(genreLabels, b.genre)] : null,
+    b.genre  ? [['Genre','Genre','Género'], localizedTextMarkup(genreLabels)] : null,
     b.lang   ? [['Language','Langue','Idioma'], escapeHtml(b.lang)] : null,
     b.pages  ? [['Pages','Pages','Páginas'], escapeHtml(b.pages)] : null,
     b.series ? [['Series','Série','Serie'], `${localizedTextMarkup(seriesNames)}${b.vol ? ` · ${localizedTextMarkup(volumeLabels)}` : ''}`] : null,
-    b.release? [['Release','Sortie','Lanzamiento'], localizedTextMarkup(releases, b.release)] : null,
+    b.release? [['Release','Sortie','Lanzamiento'], localizedTextMarkup(releases)] : null,
   ].filter(Boolean);
   document.getElementById('modal-details').innerHTML = detailFields.length
     ? detailFields.map(([labels,v])=>`<div><div class="sd-label en">${labels[0]}</div><div class="sd-label fr">${labels[1]}</div><div class="sd-label es">${labels[2]}</div><div class="sd-value">${v}</div></div>`).join('')
@@ -582,9 +591,9 @@ function buildRelatedCard(b){
   return `<div class="book-card clickable-card" onclick="closeModal();setTimeout(()=>openBook('${b.key}'),160)" role="button" tabindex="0" style="overflow:hidden;">
     <div>${buildCover(b,'small')}</div>
     <div class="book-card-body">
-      <div class="book-card-title" style="font-size:12px;">${localizedTextMarkup(titles, titles.en)}</div>
+      <div class="book-card-title" style="font-size:12px;">${localizedTextMarkup(titles)}</div>
       ${Object.values(subtitles).some(Boolean) ? `<div class="book-card-meta">${localizedTextMarkup(subtitles)}</div>` : ''}
-      ${b.available ? `<div class="book-card-price" style="font-size:12px;">${localizedTextMarkup(prices, b.price)}</div>` : `<div class="book-card-coming" style="font-size:11px;">${localizedTextMarkup(prices, b.price)}</div>`}
+      ${b.available ? `<div class="book-card-price" style="font-size:12px;">${localizedTextMarkup(prices)}</div>` : `<div class="book-card-coming" style="font-size:11px;">${localizedTextMarkup(prices)}</div>`}
     </div>
   </div>`;
 }
@@ -816,19 +825,19 @@ function openSeries2(key){
   const s=SERIES[key];
   const names = seriesTextValues(s, 'name');
   const descriptions = seriesTextValues(s, 'desc');
-  document.getElementById('sdp-breadcrumb').innerHTML=`<a onclick="showPage('home')" class="en">Home</a><a onclick="showPage('home')" class="fr">Accueil</a><a onclick="showPage('home')" class="es">Inicio</a><span>›</span><a onclick="showPage('series-list')" class="en">Series</a><a onclick="showPage('series-list')" class="fr">Séries</a><a onclick="showPage('series-list')" class="es">Series</a><span>›</span>${localizedTextMarkup(names, names.en)}`;
+  document.getElementById('sdp-breadcrumb').innerHTML=`<a onclick="showPage('home')" class="en">Home</a><a onclick="showPage('home')" class="fr">Accueil</a><a onclick="showPage('home')" class="es">Inicio</a><span>›</span><a onclick="showPage('series-list')" class="en">Series</a><a onclick="showPage('series-list')" class="fr">Séries</a><a onclick="showPage('series-list')" class="es">Series</a><span>›</span>${localizedTextMarkup(names)}`;
   document.getElementById('sdp-tag').textContent=s.tag || '';
-  document.getElementById('sdp-title').innerHTML=localizedTextMarkup(names, names.en);
-  document.getElementById('sdp-desc').innerHTML=localizedTextMarkup(descriptions, descriptions.en);
-  const covers = s.covers || { en: s.cover_en, fr: s.cover_en, es: s.cover_en };
+  document.getElementById('sdp-title').innerHTML=localizedTextMarkup(names);
+  document.getElementById('sdp-desc').innerHTML=localizedTextMarkup(descriptions);
+  const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
   const hasCover = Object.values(covers).some(Boolean);
   const coverContainer = document.getElementById('sdp-cover');
   if (coverContainer) coverContainer.innerHTML = hasCover
     ? localizedImageMarkup(covers, s.cover_en, names, 'sdp-cover-image')
     : '';
   document.getElementById('sdp-stats').innerHTML=s.stats.map(st=>`<div><div class="sdp-stat-n">${st.n}</div><div class="sdp-stat-l en">${st.l.en}</div><div class="sdp-stat-l fr">${st.l.fr}</div><div class="sdp-stat-l es">${st.l.es}</div></div>`).join('');
-  document.getElementById('sdp-concept-head').textContent=s.conceptHead;
-  document.getElementById('sdp-concept-body').textContent=s.conceptBody;
+  document.getElementById('sdp-concept-head').innerHTML=localizedTextMarkup(seriesTextValues(s, 'conceptHead'));
+  document.getElementById('sdp-concept-body').innerHTML=localizedTextMarkup(seriesTextValues(s, 'conceptBody'));
   const avail=s.volumes.filter(k=>BOOKS[k]?.available).length;
   document.getElementById('sdp-books-head-en').textContent=`All ${s.volumes.length} Titles in This Series`;
   document.getElementById('sdp-books-head-fr').textContent=`Les ${s.volumes.length} Titres de Cette Série`;
@@ -843,12 +852,12 @@ function openSeries2(key){
     const releases = bookTextValues(b, 'releases', b.release || '');
     const volumeLabels = bookTextValues(b, 'volumeLabels', b.vol || '');
     return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" role="button" tabindex="0" style="position:relative;overflow:hidden;">
-      <div style="position:relative;">${buildCover(b)}${b.vol?`<div class="vol-badge">${localizedTextMarkup(volumeLabels, b.vol)}</div>`:''}</div>
+      <div style="position:relative;">${buildCover(b)}${b.vol?`<div class="vol-badge">${localizedTextMarkup(volumeLabels)}</div>`:''}</div>
       <div class="book-card-body">
-        <div class="book-card-title">${localizedTextMarkup(titles, titles.en)}</div>
+        <div class="book-card-title">${localizedTextMarkup(titles)}</div>
         ${Object.values(subtitles).some(Boolean) ? `<div class="book-card-meta">${localizedTextMarkup(subtitles)}</div>` : ''}
-        <div class="book-card-meta">${localizedTextMarkup(genreLabels, b.genre)}${b.vol ? ` · ${localizedTextMarkup(volumeLabels, b.vol)}` : ''}</div>
-        ${b.available ? `<div class="book-card-price">${localizedTextMarkup(prices, b.price)}</div>` : `<div class="book-card-coming">${localizedTextMarkup({
+        <div class="book-card-meta">${localizedTextMarkup(genreLabels)}${b.vol ? ` · ${localizedTextMarkup(volumeLabels)}` : ''}</div>
+        ${b.available ? `<div class="book-card-price">${localizedTextMarkup(prices)}</div>` : `<div class="book-card-coming">${localizedTextMarkup({
           en: releases.en || 'Coming Soon', fr: releases.fr || 'À Venir', es: releases.es || 'Próximamente',
         })}</div>`}
       </div>
@@ -890,7 +899,7 @@ function doSearch(){
     || Object.values(bookTextValues(b, 'subtitles', b.subtitle || '')).some(value => value.toLowerCase().includes(q))
   );
   if(!matches.length){ out.innerHTML=`<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:1rem 0;" class="en">No titles found for "${q}"</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:1rem 0;" class="fr">Aucun titre trouvé pour « ${q} »</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:1rem 0;" class="es">No se encontraron títulos para "${q}"</p>`; return; }
-  out.innerHTML=matches.map(b=>`<div class="sr-item" onclick="closeSearch();openBook('${b.key}')"><div class="sr-title">${localizedTextMarkup(bookTitleValues(b), b.title)}</div><div class="sr-meta">${localizedTextMarkup(bookTextValues(b, 'genreLabels', b.genre || ''))} · ${localizedTextMarkup(bookTextValues(b, 'seriesNames', b.series || ''))} · ${escapeHtml(b.lang)}</div></div>`).join('');
+  out.innerHTML=matches.map(b=>`<div class="sr-item" onclick="closeSearch();openBook('${b.key}')"><div class="sr-title">${localizedTextMarkup(bookTitleValues(b))}</div><div class="sr-meta">${localizedTextMarkup(bookTextValues(b, 'genreLabels', b.genre || ''))} · ${localizedTextMarkup(bookTextValues(b, 'seriesNames', b.series || ''))} · ${escapeHtml(b.lang)}</div></div>`).join('');
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
