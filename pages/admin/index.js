@@ -716,6 +716,8 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
   const [newSeriesForm, setNewSeriesForm] = useState({
     name:'', name_en:'', name_fr:'', name_es:'',
     desc:'', desc_en:'', desc_fr:'', desc_es:'', tag:'',
+    conceptHead:'', conceptHead_en:'', conceptHead_fr:'', conceptHead_es:'',
+    conceptBody:'', conceptBody_en:'', conceptBody_fr:'', conceptBody_es:'',
   });
   const [creatingSeries, setCreatingSeries] = useState(false);
   const [selectedExisting, setSelectedExisting] = useState([]); // book keys
@@ -729,6 +731,8 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
     setNewSeriesForm({
       name:'', name_en:'', name_fr:'', name_es:'',
       desc:'', desc_en:'', desc_fr:'', desc_es:'', tag:'',
+      conceptHead:'', conceptHead_en:'', conceptHead_fr:'', conceptHead_es:'',
+      conceptBody:'', conceptBody_en:'', conceptBody_fr:'', conceptBody_es:'',
     });
     setSelectedExisting([]);
     setShowEmbeddedAddBook(false);
@@ -989,6 +993,10 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                 setSeriesForm({
                   key:s.key, name:s.name, name_en:s.name_en || s.name, name_fr:s.name_fr || '', name_es:s.name_es || '',
                   desc:s.desc || '', desc_en:s.desc_en || s.desc || '', desc_fr:s.desc_fr || '', desc_es:s.desc_es || '',
+                  conceptHead:s.conceptHead || '', conceptHead_en:s.conceptHead_en || s.conceptHead || '',
+                  conceptHead_fr:s.conceptHead_fr || '', conceptHead_es:s.conceptHead_es || '',
+                  conceptBody:s.conceptBody || '', conceptBody_en:s.conceptBody_en || s.conceptBody || '',
+                  conceptBody_fr:s.conceptBody_fr || '', conceptBody_es:s.conceptBody_es || '',
                   cover_en:s.cover_en || '', cover_fr:s.cover_fr || '', cover_es:s.cover_es || '',
                   tag:s.tag, hidden:s.hidden === true,
                 });
@@ -1031,6 +1039,23 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                   onChange={e => setSeriesForm(f => ({
                     ...f, [`desc_${seriesLangTab}`]:e.target.value,
                     ...(seriesLangTab === 'en' ? { desc:e.target.value } : {}),
+                  }))} />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Concept Heading · {EDITOR_LANGUAGES.find(item => item.id === seriesLangTab)?.label}</label>
+                <input className="field-input" value={seriesForm[`conceptHead_${seriesLangTab}`] || ''}
+                  onChange={event => setSeriesForm(form => ({
+                    ...form, [`conceptHead_${seriesLangTab}`]:event.target.value,
+                    ...(seriesLangTab === 'en' ? { conceptHead:event.target.value } : {}),
+                  }))} />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Concept Description · {EDITOR_LANGUAGES.find(item => item.id === seriesLangTab)?.label}</label>
+                <textarea className="field-input field-textarea" style={{minHeight:120}}
+                  value={seriesForm[`conceptBody_${seriesLangTab}`] || ''}
+                  onChange={event => setSeriesForm(form => ({
+                    ...form, [`conceptBody_${seriesLangTab}`]:event.target.value,
+                    ...(seriesLangTab === 'en' ? { conceptBody:event.target.value } : {}),
                   }))} />
               </div>
               <div className="field-row">
@@ -1187,6 +1212,23 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                     ...(newSeriesLangTab === 'en' ? { desc:e.target.value } : {}),
                   }))}
                   placeholder="One or two sentences about the series…" />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Concept Heading · {EDITOR_LANGUAGES.find(item => item.id === newSeriesLangTab)?.label}</label>
+                <input className="field-input" value={newSeriesForm[`conceptHead_${newSeriesLangTab}`] || ''}
+                  onChange={event => setNewSeriesForm(form => ({
+                    ...form, [`conceptHead_${newSeriesLangTab}`]:event.target.value,
+                    ...(newSeriesLangTab === 'en' ? { conceptHead:event.target.value } : {}),
+                  }))} />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Concept Description · {EDITOR_LANGUAGES.find(item => item.id === newSeriesLangTab)?.label}</label>
+                <textarea className="field-input field-textarea" style={{minHeight:120}}
+                  value={newSeriesForm[`conceptBody_${newSeriesLangTab}`] || ''}
+                  onChange={event => setNewSeriesForm(form => ({
+                    ...form, [`conceptBody_${newSeriesLangTab}`]:event.target.value,
+                    ...(newSeriesLangTab === 'en' ? { conceptBody:event.target.value } : {}),
+                  }))} />
               </div>
 
               <div className="panel" style={{marginTop:'.75rem'}}>

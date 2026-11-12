@@ -57,6 +57,14 @@ function fixture() {
         key: 'mercer', name: 'The Mercer Files', name_en: 'The Mercer Files',
         name_fr: 'Les Dossiers Mercer', name_es: 'Los Archivos Mercer',
         desc_en: 'English description', desc_fr: 'Description française', desc_es: 'Descripción española',
+        conceptHead: 'Institutional Intelligence',
+        conceptHead_en: 'Institutional Intelligence',
+        conceptHead_fr: 'Renseignement institutionnel',
+        conceptHead_es: 'Inteligencia institucional',
+        conceptBody: 'English concept',
+        conceptBody_en: 'English concept',
+        conceptBody_fr: 'Concept en français',
+        conceptBody_es: 'Concepto en español',
         cover_en: '/covers/series-en.webp',
         cover_fr: '/covers/series-fr.webp',
         cover_es: '/covers/series-es.webp',
@@ -94,6 +102,8 @@ test('migration preserves books and legacy values, creates relational data, and 
   assert.equal(first.catalog.BOOKS.spy1.image_es, originalSpyBook.image_es);
   assert.equal(first.catalog.SERIES.mercer.name_fr, 'Les Dossiers Mercer');
   assert.equal(first.catalog.SERIES.mercer.desc_es, 'Descripción española');
+  assert.equal(first.catalog.SERIES.mercer.conceptHead_fr, 'Renseignement institutionnel');
+  assert.equal(first.catalog.SERIES.mercer.conceptBody_es, 'Concepto en español');
   assert.equal(first.catalog.SERIES.mercer.cover_fr, '/covers/series-fr.webp');
   assert.equal(first.catalog.BOOKS.spy1.image, originalSpyBook.image);
   assert.deepEqual(first.catalog.BOOKS.spy1.links, originalSpyBook.links);
