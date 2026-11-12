@@ -11,6 +11,7 @@ let BOOKS = {};
 let SERIES = {};
 let BUNDLES = [];
 let PLATFORMS = {};
+let PUBLISHING_TAXONOMY = [];
 
 // Book/series/bundle text fields are admin-entered (dashboard forms with
 // no format validation) and get interpolated straight into innerHTML
@@ -24,6 +25,29 @@ function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
+}
+
+function localizedTextMarkup(values, fallback='') {
+  return ['en', 'fr', 'es'].map(lang =>
+    `<span class="${lang}">${escapeHtml(values?.[lang] || fallback)}</span>`,
+  ).join('');
+}
+
+function bookTitleValues(book) {
+  return book.titles || {
+    en: book.title_en || book.title || '',
+    fr: book.title_fr || book.title_en || book.title || '',
+    es: book.title_es || book.title_en || book.title || '',
+  };
+}
+
+function seriesTextValues(series, field) {
+  const legacy = field === 'name' ? series.name : series.desc;
+  return {
+    en: series[`${field}_en`] || legacy || '',
+    fr: series[`${field}_fr`] || series[`${field}_en`] || legacy || '',
+    es: series[`${field}_es`] || series[`${field}_en`] || legacy || '',
+  };
 }
 
 async function loadCatalog() {
@@ -43,6 +67,7 @@ async function loadCatalog() {
     SERIES    = data.SERIES    || {};
     BUNDLES   = data.BUNDLES   || [];
     PLATFORMS = data.PLATFORMS || {};
+    PUBLISHING_TAXONOMY = data.PUBLISHING_TAXONOMY || [];
 
     // Site lock check
     if (data.siteLocked) {
@@ -110,7 +135,9 @@ function hideSiteLockOverlay() {
 ══════════════════════════════════════ */
 function buildCover(b, size='normal'){
   const fs = size==='small' ? '10px' : size==='mini' ? '8px' : '13px';
-  const title = escapeHtml(b.title);
+  const titles = bookTitleValues(b);
+  const title = escapeHtml(titles.en);
+  const titleMarkup = localizedTextMarkup(titles, titles.en);
   const color = escapeHtml(b.color);
   const release = escapeHtml(b.release);
 
@@ -130,7 +157,7 @@ function buildCover(b, size='normal'){
         <div class="unavail-label en">${release||'Coming Soon'}</div>
         <div class="unavail-label fr">${release||'À Venir'}</div>
         <div class="unavail-label es">${release||'Próximamente'}</div>
-        <div style="font-family:var(--display);font-size:${fs};font-weight:700;color:rgba(255,255,255,0.75);margin-top:6px;line-height:1.25;">${title}</div>
+        <div style="font-family:var(--display);font-size:${fs};font-weight:700;color:rgba(255,255,255,0.75);margin-top:6px;line-height:1.25;">${titleMarkup}</div>
       </div>
       ${release && release!=='TBD' ? `<div class="release-banner" style="z-index:3;">${release}</div>` : ''}
     </div>`;
@@ -144,19 +171,22 @@ function buildCover(b, size='normal'){
     </div>
     <div class="book-cover-overlay" style="z-index:2;">
       ${!b.image ? `<div class="bc-orn">${escapeHtml(b.orn)}</div>
-      <div class="bc-title-text" style="font-size:${fs};">${title}</div>
+      <div class="bc-title-text" style="font-size:${fs};">${titleMarkup}</div>
       ${b.subtitle && !b.subtitle.includes('Coming') ? `<div class="bc-subtitle-text">${escapeHtml(b.subtitle)}</div>` : ''}` : ''}
     </div>
   </div>`;
 }
 
 function buildBookCard(b, showVol=false){
-  const title = escapeHtml(b.title);
-  return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0" aria-label="Open details for ${title}">
+  const titles = bookTitleValues(b);
+  const title = localizedTextMarkup(titles, titles.en);
+  return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" style="overflow:hidden;" role="button" tabindex="0" aria-label="Open details for ${escapeHtml(titles.en)}">
     <div style="position:relative;">${buildCover(b)}</div>
     <div class="book-card-body">
       <div class="book-card-title">${title}</div>
+      ${b.authors?.length ? `<div class="book-card-meta">${b.authors.map(escapeHtml).join(', ')}</div>` : ''}
       <div class="book-card-meta">${escapeHtml(b.genre)}${showVol && b.vol ? ' · '+escapeHtml(b.vol) : ''}</div>
+      ${b.publishingSubcategory ? `<div class="book-card-meta">${escapeHtml(b.publishingCategory)} · ${escapeHtml(b.publishingSubcategory)}</div>` : ''}
       ${b.available ? `<div class="book-card-price">${escapeHtml(b.price)}</div>` : `<div class="book-card-coming">${escapeHtml(b.price)}</div>`}
     </div>
   </div>`;
@@ -169,18 +199,123 @@ function renderHomeCatalog(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const featured = ['mercer1','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1','anatomy1'];
   document.getElementById('home-catalog-grid').innerHTML = featured.map(k=>BOOKS[k]).filter(Boolean).map(b=>buildBookCard(b)).join('');
+  renderPublishingCategoryBrowse();
+}
+
+function renderPublishingCategoryBrowse(){
+  const featuredGrid = document.getElementById('home-catalog-grid');
+  if (!featuredGrid || !PUBLISHING_TAXONOMY.length) return;
+  let browse = document.getElementById('publishing-category-browse');
+  if (!browse) {
+    browse = document.createElement('div');
+    browse.id = 'publishing-category-browse';
+    browse.style.cssText = 'margin-top:3rem;padding-top:2rem;border-top:1px solid rgba(255,255,255,.12);';
+    featuredGrid.insertAdjacentElement('afterend', browse);
+  }
+  const option = (value, label) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+  const genres = [...new Set(Object.values(BOOKS).map(book => book.genre).filter(Boolean))].sort();
+  const subjects = [...new Set(Object.values(BOOKS).flatMap(book => book.subjects || []))].sort();
+  const audiences = [...new Set(Object.values(BOOKS).map(book => book.targetAudience).filter(Boolean))].sort();
+  const contentTypes = [...new Set(Object.values(BOOKS).map(book => book.contentType).filter(Boolean))].sort();
+  const languages = [...new Set(Object.values(BOOKS).flatMap(book => [...(book.editionLanguages || []), book.lang]).filter(Boolean))].sort();
+  const formats = [...new Set(Object.values(BOOKS).flatMap(book => book.formats || []))].sort();
+  browse.innerHTML = `
+    <h3 class="section-title" style="font-size:clamp(20px,2.4vw,30px);margin-bottom:1rem;">
+      <span class="en">Browse by <em>Category</em></span>
+      <span class="fr">Explorer par <em>catégorie</em></span>
+      <span class="es">Explorar por <em>categoría</em></span>
+    </h3>
+    <div style="display:flex;flex-wrap:wrap;gap:.65rem;margin-bottom:1.25rem;">
+      <select id="publishing-parent-filter" aria-label="Publishing category" style="min-width:220px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All publishing categories')}
+        ${PUBLISHING_TAXONOMY.map(category => option(category.label, category.label)).join('')}
+      </select>
+      <select id="publishing-child-filter" aria-label="Publishing subcategory" style="min-width:220px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;" disabled>
+        ${option('', 'Select a category first')}
+      </select>
+      <select id="publishing-genre-filter" aria-label="Genre" style="min-width:180px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All genres')}${genres.map(value => option(value, value)).join('')}
+      </select>
+      <select id="publishing-subject-filter" aria-label="Subject" style="min-width:180px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All subjects')}${subjects.map(value => option(value, value)).join('')}
+      </select>
+      <select id="publishing-audience-filter" aria-label="Audience" style="min-width:160px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All audiences')}${audiences.map(value => option(value, value)).join('')}
+      </select>
+      <select id="publishing-content-type-filter" aria-label="Content type" style="min-width:160px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All content types')}${contentTypes.map(value => option(value, value)).join('')}
+      </select>
+      <select id="publishing-language-filter" aria-label="Edition language" style="min-width:160px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All languages')}${languages.map(value => option(value, value)).join('')}
+      </select>
+      <select id="publishing-format-filter" aria-label="Published format" style="min-width:160px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+        ${option('', 'All formats')}${formats.map(value => option(value, value)).join('')}
+      </select>
+      <input id="publishing-age-min-filter" type="number" min="0" aria-label="Minimum age" placeholder="Age from" style="width:110px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+      <input id="publishing-age-max-filter" type="number" min="0" aria-label="Maximum age" placeholder="Age to" style="width:110px;padding:.65rem;background:#171717;color:#eee;border:1px solid #444;">
+    </div>
+    <div id="publishing-category-results" style="font-size:13px;color:var(--text-muted);">Choose a filter to browse the catalogue.</div>
+    <div id="publishing-category-grid" class="books-grid"></div>
+  `;
+  const parent = browse.querySelector('#publishing-parent-filter');
+  const child = browse.querySelector('#publishing-child-filter');
+  const controls = ['genre', 'subject', 'audience', 'content-type', 'language', 'format']
+    .map(name => browse.querySelector(`#publishing-${name}-filter`));
+  const ageMin = browse.querySelector('#publishing-age-min-filter');
+  const ageMax = browse.querySelector('#publishing-age-max-filter');
+  const grid = browse.querySelector('#publishing-category-grid');
+  const results = browse.querySelector('#publishing-category-results');
+  const renderResults = () => {
+    const categoryLabel = parent.value;
+    const childLabel = child.value;
+    const [genre, subject, audience, contentType, language, format] = controls.map(control => control.value);
+    const minimumAge = ageMin.value === '' ? null : Number(ageMin.value);
+    const maximumAge = ageMax.value === '' ? null : Number(ageMax.value);
+    const hasFilter = !!(categoryLabel || genre || subject || audience || contentType || language || format || minimumAge !== null || maximumAge !== null);
+    const matches = Object.values(BOOKS).filter(book =>
+      (!categoryLabel || book.publishingCategory === categoryLabel) &&
+      (!childLabel || book.publishingSubcategory === childLabel) &&
+      (!genre || book.genre === genre || (book.genres || []).includes(genre)) &&
+      (!subject || (book.subjects || []).includes(subject)) &&
+      (!audience || book.targetAudience === audience) &&
+      (!contentType || book.contentType === contentType) &&
+      (!language || book.lang === language || (book.editionLanguages || []).includes(language)) &&
+      (!format || (book.formats || []).includes(format)) &&
+      (minimumAge === null || (book.ageRangeMin != null || book.ageRangeMax != null) &&
+        (book.ageRangeMax == null || Number(book.ageRangeMax) >= minimumAge)) &&
+      (maximumAge === null || (book.ageRangeMin != null || book.ageRangeMax != null) &&
+        (book.ageRangeMin == null || Number(book.ageRangeMin) <= maximumAge)),
+    );
+    results.textContent = hasFilter ? `${matches.length} title${matches.length === 1 ? '' : 's'}` : 'Choose a filter to browse the catalogue.';
+    grid.innerHTML = hasFilter ? matches.map(book => buildBookCard(book)).join('') : '';
+  };
+  parent.addEventListener('change', () => {
+    const category = PUBLISHING_TAXONOMY.find(item => item.label === parent.value);
+    child.innerHTML = option('', category ? 'All subcategories' : 'Select a category first') +
+      (category?.subcategories || []).map(value => option(value, value)).join('');
+    child.disabled = !category;
+    child.value = '';
+    renderResults();
+  });
+  child.addEventListener('change', renderResults);
+  controls.forEach(control => control.addEventListener('change', renderResults));
+  ageMin.addEventListener('input', renderResults);
+  ageMax.addEventListener('input', renderResults);
 }
 
 function renderHomeSeriesGrid(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
-  document.getElementById('home-series-grid').innerHTML = Object.values(SERIES).map(s=>`
-    <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0" aria-label="Explore ${s.name}">
+  document.getElementById('home-series-grid').innerHTML = Object.values(SERIES).map(s=>{
+    const names = seriesTextValues(s, 'name');
+    const descriptions = seriesTextValues(s, 'desc');
+    return `
+    <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0" aria-label="Explore ${escapeHtml(names.en)}">
       <div class="soc-num">${s.num}</div>
-      <div class="soc-tag">${s.tag}</div>
-      <div class="soc-name">${s.name}</div>
-      <div class="soc-desc">${s.desc}</div>
+      <div class="soc-tag">${escapeHtml(s.tag)}</div>
+      <div class="soc-name">${localizedTextMarkup(names, names.en)}</div>
+      <div class="soc-desc">${localizedTextMarkup(descriptions, descriptions.en)}</div>
       <div class="soc-count">${s.totalVols} <span class="en">volumes</span><span class="fr">volumes</span><span class="es">volúmenes</span> · EN/FR <span class="soc-arrow">→</span></div>
-    </div>`).join('');
+    </div>`;}).join('');
 }
 
 function renderHeroMosaic(){
@@ -189,9 +324,10 @@ function renderHeroMosaic(){
   document.getElementById('hero-mosaic').innerHTML = keys.map(k=>{
     const b=BOOKS[k];
     if(!b) return null;
-    return `<div class="hero-mini-card" onclick="openBook('${b.key}')" aria-label="${b.title}">
+    const titles = bookTitleValues(b);
+    return `<div class="hero-mini-card" onclick="openBook('${b.key}')" aria-label="${escapeHtml(titles.en)}">
       <div class="hero-mini-inner" style="background:${b.color};">
-        <div class="hero-mini-content"><div class="hmc-genre">${b.genre}</div><div class="hmc-title">${b.title}</div><div class="hmc-orn">${b.orn}</div></div>
+        <div class="hero-mini-content"><div class="hmc-genre">${escapeHtml(b.genre)}</div><div class="hmc-title">${localizedTextMarkup(titles, titles.en)}</div><div class="hmc-orn">${escapeHtml(b.orn)}</div></div>
       </div>
     </div>`;
   }).filter(Boolean).join('');
@@ -218,14 +354,17 @@ function renderBBPreviews(){
 ══════════════════════════════════════ */
 function renderSeriesListPage(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
-  document.getElementById('series-list-grid').innerHTML = Object.values(SERIES).map(s=>`
+  document.getElementById('series-list-grid').innerHTML = Object.values(SERIES).map(s=>{
+    const names = seriesTextValues(s, 'name');
+    const descriptions = seriesTextValues(s, 'desc');
+    return `
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0">
-      <div class="soc-num">${s.num}</div>
-      <div class="soc-tag">${s.tag}</div>
-      <div class="soc-name">${s.name}</div>
-      <div class="soc-desc">${s.desc}</div>
+      <div class="soc-num">${escapeHtml(s.num)}</div>
+      <div class="soc-tag">${escapeHtml(s.tag)}</div>
+      <div class="soc-name">${localizedTextMarkup(names, names.en)}</div>
+      <div class="soc-desc">${localizedTextMarkup(descriptions, descriptions.en)}</div>
       <div class="soc-count">${s.totalVols} <span class="en">volumes · Explore →</span><span class="fr">volumes · Explorer →</span><span class="es">volúmenes · Explorar →</span></div>
-    </div>`).join('');
+    </div>`;}).join('');
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -235,14 +374,15 @@ let currentFmt = 'print';
 function openBook(key){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const b = BOOKS[key];
+  const titles = bookTitleValues(b);
   // Cover in modal header
   document.getElementById('modal-cover-box').innerHTML = buildCover(b,'small');
   document.getElementById('mh-genre').textContent = b.genre;
-  document.getElementById('mh-title').textContent = b.title;
+  document.getElementById('mh-title').innerHTML = localizedTextMarkup(titles, titles.en);
   document.getElementById('mh-subtitle').textContent = b.subtitle || '';
   document.getElementById('mh-meta').innerHTML = `<span>${b.lang}</span><span style="margin:0 5px;opacity:.25;">·</span><span>${b.pages}</span><span style="margin:0 5px;opacity:.25;">·</span><span>${b.series}</span>`;
   // Unavailable notice + email signup
-  const _safeTitle = b.title.replace(/'/g,'').replace(/"/g,'');
+  const _safeTitle = titles.en.replace(/'/g,'').replace(/"/g,'');
   document.getElementById('mh-unavail').innerHTML = !b.available
     ? `<div class="unavail-notice" id="unavail-${b.key}">
         <div class="un-title en">Coming ${b.release||'Soon'}</div>
@@ -274,6 +414,8 @@ function openBook(key){
     : (b.synopsis_en || b.synopsis || '');
   document.getElementById('modal-synopsis').textContent = _synopsis;
   const detailFields = [
+    b.publishingCategory ? [['Publishing Category','Catégorie éditoriale','Categoría editorial'], b.publishingCategory] : null,
+    b.publishingSubcategory ? [['Subcategory','Sous-catégorie','Subcategoría'], b.publishingSubcategory] : null,
     b.genre  ? [['Genre','Genre','Género'], b.genre] : null,
     b.lang   ? [['Language','Langue','Idioma'], b.lang] : null,
     b.pages  ? [['Pages','Pages','Páginas'], b.pages] : null,
@@ -369,9 +511,11 @@ function renderRelated(b){
   // Layer 3: related standalone (different genre, curated by hand)
   let html = '';
   if(sameSeries.length){
-    html += `<p class="related-group-label en">Other books in ${b.series}</p>
-             <p class="related-group-label fr">Autres livres dans ${b.series}</p>
-             <p class="related-group-label es">Otros libros de ${b.series}</p>
+    const relatedSeries = SERIES[b.seriesKey];
+    const seriesNames = relatedSeries ? seriesTextValues(relatedSeries, 'name') : { en:b.series, fr:b.series, es:b.series };
+    html += `<p class="related-group-label en">Other books in ${escapeHtml(seriesNames.en)}</p>
+             <p class="related-group-label fr">Autres livres dans ${escapeHtml(seriesNames.fr)}</p>
+             <p class="related-group-label es">Otros libros de ${escapeHtml(seriesNames.es)}</p>
              <div class="related-mini-grid">${sameSeries.map(bk=>buildRelatedCard(bk)).join('')}</div>`;
   }
   if(sameGenre.length){
@@ -389,10 +533,11 @@ function renderRelated(b){
 }
 
 function buildRelatedCard(b){
+  const titles = bookTitleValues(b);
   return `<div class="book-card clickable-card" onclick="closeModal();setTimeout(()=>openBook('${b.key}'),160)" role="button" tabindex="0" style="overflow:hidden;">
     <div>${buildCover(b,'small')}</div>
     <div class="book-card-body">
-      <div class="book-card-title" style="font-size:12px;">${b.title}</div>
+      <div class="book-card-title" style="font-size:12px;">${localizedTextMarkup(titles, titles.en)}</div>
       ${b.available ? `<div class="book-card-price" style="font-size:12px;">${b.price}</div>` : `<div class="book-card-coming" style="font-size:11px;">${b.price}</div>`}
     </div>
   </div>`;
@@ -623,10 +768,12 @@ function openSeries(key){ SERIES[key]; const s=SERIES[key]; if(!s) return; openS
 function openSeries2(key){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const s=SERIES[key];
-  document.getElementById('sdp-breadcrumb').innerHTML=`<a onclick="showPage('home')" class="en">Home</a><a onclick="showPage('home')" class="fr">Accueil</a><a onclick="showPage('home')" class="es">Inicio</a><span>›</span><a onclick="showPage('series-list')" class="en">Series</a><a onclick="showPage('series-list')" class="fr">Séries</a><a onclick="showPage('series-list')" class="es">Series</a><span>›</span><span>${s.name}</span>`;
-  document.getElementById('sdp-tag').textContent=s.tag;
-  document.getElementById('sdp-title').innerHTML=s.name;
-  document.getElementById('sdp-desc').textContent=s.desc;
+  const names = seriesTextValues(s, 'name');
+  const descriptions = seriesTextValues(s, 'desc');
+  document.getElementById('sdp-breadcrumb').innerHTML=`<a onclick="showPage('home')" class="en">Home</a><a onclick="showPage('home')" class="fr">Accueil</a><a onclick="showPage('home')" class="es">Inicio</a><span>›</span><a onclick="showPage('series-list')" class="en">Series</a><a onclick="showPage('series-list')" class="fr">Séries</a><a onclick="showPage('series-list')" class="es">Series</a><span>›</span>${localizedTextMarkup(names, names.en)}`;
+  document.getElementById('sdp-tag').textContent=s.tag || '';
+  document.getElementById('sdp-title').innerHTML=localizedTextMarkup(names, names.en);
+  document.getElementById('sdp-desc').innerHTML=localizedTextMarkup(descriptions, descriptions.en);
   document.getElementById('sdp-stats').innerHTML=s.stats.map(st=>`<div><div class="sdp-stat-n">${st.n}</div><div class="sdp-stat-l en">${st.l.en}</div><div class="sdp-stat-l fr">${st.l.fr}</div><div class="sdp-stat-l es">${st.l.es}</div></div>`).join('');
   document.getElementById('sdp-concept-head').textContent=s.conceptHead;
   document.getElementById('sdp-concept-body').textContent=s.conceptBody;
@@ -637,10 +784,11 @@ function openSeries2(key){
   document.getElementById('sdp-avail-count').innerHTML=`<span class="en">${avail} available · ${s.volumes.length-avail} coming soon</span><span class="fr">${avail} disponibles · ${s.volumes.length-avail} à venir</span><span class="es">${avail} disponibles · ${s.volumes.length-avail} próximamente</span>`;
   document.getElementById('sdp-books-grid').innerHTML=s.volumes.map(k=>{
     const b=BOOKS[k];if(!b)return '';
+    const titles = bookTitleValues(b);
     return `<div class="book-card clickable-card" onclick="openBook('${b.key}')" role="button" tabindex="0" style="position:relative;overflow:hidden;">
       <div style="position:relative;">${buildCover(b)}${b.vol?`<div class="vol-badge">${b.vol}</div>`:''}</div>
       <div class="book-card-body">
-        <div class="book-card-title">${b.title}</div>
+        <div class="book-card-title">${localizedTextMarkup(titles, titles.en)}</div>
         <div class="book-card-meta">${b.genre}${b.vol?' · '+b.vol:''}</div>
         ${b.available?`<div class="book-card-price">${b.price}</div>`:`<div class="book-card-coming en">${b.release||'Coming Soon'}</div><div class="book-card-coming fr">${b.release||'À Venir'}</div><div class="book-card-coming es">${b.release||'Próximamente'}</div>`}
       </div>
@@ -675,9 +823,9 @@ function doSearch(){
   const q=document.getElementById('si-input').value.toLowerCase();
   const out=document.getElementById('search-results');
   if(q.length<2){ out.innerHTML=''; return; }
-  const matches=Object.values(BOOKS).filter(b=>b.title.toLowerCase().includes(q)||b.genre.toLowerCase().includes(q)||b.series.toLowerCase().includes(q)||b.subtitle.toLowerCase().includes(q));
+  const matches=Object.values(BOOKS).filter(b=>Object.values(bookTitleValues(b)).some(title=>title.toLowerCase().includes(q))||b.genre.toLowerCase().includes(q)||b.series.toLowerCase().includes(q)||b.subtitle.toLowerCase().includes(q));
   if(!matches.length){ out.innerHTML=`<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:1rem 0;" class="en">No titles found for "${q}"</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:1rem 0;" class="fr">Aucun titre trouvé pour « ${q} »</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:1rem 0;" class="es">No se encontraron títulos para "${q}"</p>`; return; }
-  out.innerHTML=matches.map(b=>`<div class="sr-item" onclick="closeSearch();openBook('${b.key}')"><div class="sr-title">${b.title}</div><div class="sr-meta">${b.genre} · ${b.series} · ${b.lang}</div></div>`).join('');
+  out.innerHTML=matches.map(b=>`<div class="sr-item" onclick="closeSearch();openBook('${b.key}')"><div class="sr-title">${localizedTextMarkup(bookTitleValues(b), b.title)}</div><div class="sr-meta">${escapeHtml(b.genre)} · ${escapeHtml(b.series)} · ${escapeHtml(b.lang)}</div></div>`).join('');
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -778,4 +926,3 @@ function renderHome() {
     tickTimers();
   }
 })();
-

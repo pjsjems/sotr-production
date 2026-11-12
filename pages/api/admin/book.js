@@ -3,11 +3,12 @@ import {
   updateBook, toggleAvailability, toggleHidden, updateSynopsis,
   addPlatform, updatePlatform, deletePlatform,
   updateSeries, addSeries, addBookToSeries, removeBookFromSeries,
+  toggleSeriesHidden,
 } from '../../../lib/adminData';
 
 const NO_KEY_ACTIONS = [
   'add-platform', 'update-platform', 'delete-platform',
-  'update-series', 'add-series', 'series-add-book', 'series-remove-book',
+  'update-series', 'add-series', 'series-add-book', 'series-remove-book', 'toggle-series-hidden',
 ];
 
 export default async function handler(req, res) {
@@ -53,7 +54,11 @@ export default async function handler(req, res) {
       if (!seriesKey || !bookKey) return res.status(400).json({ error: 'seriesKey and bookKey required' });
       result = await removeBookFromSeries(seriesKey, bookKey);
     }
+    else if (action === 'toggle-series-hidden') {
+      if (!seriesKey) return res.status(400).json({ error: 'seriesKey required' });
+      result = await toggleSeriesHidden(seriesKey);
+    }
     else return res.status(400).json({ error: 'Unknown action' });
     res.status(200).json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 }

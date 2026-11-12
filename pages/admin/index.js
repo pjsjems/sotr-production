@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { PLATFORM_LABELS as PODCAST_PLATFORM_LABELS } from '../../components/textes/PodcastModal';
 import ContentAdmin from '../../components/admin/ContentAdmin';
+import PublishingAdmin, { PublishingFields } from '../../components/admin/PublishingFields';
 import { ADMIN_CSS } from '../../lib/adminCss';
 import { getAdminStatus } from '../../lib/textSchedule';
 import { DEFAULT_SITE_CONTENT, normalizeSiteContent, SERIES_CATEGORY_OPTIONS } from '../../lib/siteContent';
@@ -18,6 +19,23 @@ import { DEFAULT_SITE_CONTENT, normalizeSiteContent, SERIES_CATEGORY_OPTIONS } f
 // vs "Spy-Thriller" drift) while still allowing a one-off custom entry
 // via "+ Add New Genre" for anything not covered here.
 const SERIES_GENRE_PRESETS = SERIES_CATEGORY_OPTIONS;
+const EDITOR_LANGUAGES = [
+  { id: 'en', label: '🇬🇧 English' },
+  { id: 'fr', label: '🇫🇷 Français' },
+  { id: 'es', label: '🇪🇸 Español' },
+];
+
+function LanguageSubpages({ value, onChange }) {
+  return (
+    <div role="tablist" aria-label="Content language" style={{ display:'flex', gap:6, margin:'.25rem 0 .75rem' }}>
+      {EDITOR_LANGUAGES.map(language => (
+        <button key={language.id} type="button" role="tab" aria-selected={value === language.id}
+          className={`btn btn-sm ${value === language.id ? 'btn-p' : 'btn-s'}`}
+          onClick={() => onChange(language.id)}>{language.label}</button>
+      ))}
+    </div>
+  );
+}
 
 // ── Bundle Management Component ────────────────────────────
 function BundleAdmin({ toast, books = [] }) {
@@ -587,6 +605,12 @@ const NEW_BOOK_GENRES = SERIES_CATEGORY_OPTIONS;
 function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT }) {
   const [editSeries, setEditSeries] = useState(null);
   const [seriesForm, setSeriesForm] = useState({});
+  const [seriesLangTab, setSeriesLangTab] = useState('en');
+  const [newSeriesLangTab, setNewSeriesLangTab] = useState('en');
+  const [embeddedBookLangTab, setEmbeddedBookLangTab] = useState('en');
+  const [editSeriesBookForm, setEditSeriesBookForm] = useState({});
+  const [editSeriesBookLangTab, setEditSeriesBookLangTab] = useState('en');
+  const [showEditSeriesBook, setShowEditSeriesBook] = useState(false);
   const [seriesSaving, setSeriesSaving] = useState(false);
   const [addBookKey, setAddBookKey] = useState('');
   const [membershipBusy, setMembershipBusy] = useState(false);
@@ -597,7 +621,10 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
   // Series" is clicked, which creates the series and then attaches every
   // selected/staged book in one action.
   const [showNewSeries, setShowNewSeries] = useState(false);
-  const [newSeriesForm, setNewSeriesForm] = useState({ name:'', tag:'', desc:'' });
+  const [newSeriesForm, setNewSeriesForm] = useState({
+    name:'', name_en:'', name_fr:'', name_es:'',
+    desc:'', desc_en:'', desc_fr:'', desc_es:'', tag:'',
+  });
   const [creatingSeries, setCreatingSeries] = useState(false);
   const [selectedExisting, setSelectedExisting] = useState([]); // book keys
   const [showEmbeddedAddBook, setShowEmbeddedAddBook] = useState(false);
@@ -607,7 +634,10 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
 
   function closeNewSeries() {
     setShowNewSeries(false);
-    setNewSeriesForm({ name:'', tag:'', desc:'' });
+    setNewSeriesForm({
+      name:'', name_en:'', name_fr:'', name_es:'',
+      desc:'', desc_en:'', desc_fr:'', desc_es:'', tag:'',
+    });
     setSelectedExisting([]);
     setShowEmbeddedAddBook(false);
     setNewBookForm({});
@@ -620,8 +650,9 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
   }
 
   function stageNewBook() {
-    if (!newBookForm.title) { toast('Title is required', 'error'); return; }
-    setNewBookDrafts(prev => [...prev, { ...newBookForm, _previewKey: newBookAutoKey }]);
+    const title = newBookForm.title_en?.trim();
+    if (!title) { toast('English title is required', 'error'); return; }
+    setNewBookDrafts(prev => [...prev, { ...newBookForm, title, _previewKey: newBookAutoKey }]);
     setNewBookForm({});
     setNewBookAutoKey('');
     setShowEmbeddedAddBook(false);
@@ -634,25 +665,25 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
   // Auto-generate a key preview for the embedded new-book form, same
   // approach as the main "+ Add New Title" form elsewhere in the admin.
   useEffect(() => {
-    if (!showEmbeddedAddBook || !newBookForm.title || newBookForm.title.length < 3) { setNewBookAutoKey(''); return; }
+    if (!showEmbeddedAddBook || !newBookForm.title_en || newBookForm.title_en.length < 3) { setNewBookAutoKey(''); return; }
     const t = setTimeout(async () => {
       try {
         const r = await fetch('/api/admin/add-book', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ previewKey: newBookForm.title }),
+          body: JSON.stringify({ previewKey: newBookForm.title_en }),
         });
         const d = await r.json();
         if (d.key) setNewBookAutoKey(d.key);
       } catch {}
     }, 400);
     return () => clearTimeout(t);
-  }, [newBookForm.title, showEmbeddedAddBook]);
+  }, [newBookForm.title_en, showEmbeddedAddBook]);
 
   async function createSeriesWithBooks() {
-    if (!newSeriesForm.name.trim()) { toast('Series name is required', 'error'); return; }
+    if (!newSeriesForm.name_en.trim()) { toast('English series name is required', 'error'); return; }
     // If "+ Add New Genre" was opened but never confirmed with "Set",
     // resolve it here rather than saving the literal "__new__" marker.
-    const seriesPayload = { ...newSeriesForm };
+    const seriesPayload = { ...newSeriesForm, name: newSeriesForm.name_en, desc: newSeriesForm.desc_en };
     if (seriesPayload.tag === '__new__') seriesPayload.tag = seriesPayload.customTag || '';
     delete seriesPayload.customTag;
     setCreatingSeries(true);
@@ -719,9 +750,13 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
   async function saveSeries() {
     // If "+ Add New Genre" was opened but never confirmed with "Set",
     // resolve it here rather than saving the literal "__new__" marker.
-    const payload = { ...seriesForm };
+    const payload = { ...seriesForm, name: seriesForm.name_en, desc: seriesForm.desc_en };
     if (payload.tag === '__new__') payload.tag = payload.customTag || '';
     delete payload.customTag;
+    if (!payload.name_en?.trim()) {
+      toast('English series name is required', 'error');
+      return;
+    }
     setSeriesSaving(true);
     try {
       const r = await fetch('/api/admin/book', {
@@ -776,6 +811,56 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
     setMembershipBusy(false);
   }
 
+  async function toggleSeriesVisibility(series) {
+    try {
+      const response = await fetch('/api/admin/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle-series-hidden', seriesKey: series.key }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Could not update series visibility.');
+      toast(result.hidden ? 'Series hidden from public pages' : 'Series visible on public pages', 'success');
+      await loadCatalog();
+    } catch (error) {
+      toast(error.message || 'Could not update series visibility', 'error');
+    }
+  }
+
+  async function createBookInSeries() {
+    if (!editSeriesBookForm.title_en?.trim()) {
+      toast('English title is required', 'error');
+      return;
+    }
+    setMembershipBusy(true);
+    try {
+      const response = await fetch('/api/admin/add-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookData: {
+            ...editSeriesBookForm,
+            title: editSeriesBookForm.title_en.trim(),
+            title_en: editSeriesBookForm.title_en.trim(),
+            seriesKey: editSeries.key,
+            series: editSeries.name_en || editSeries.name,
+            lang: editSeriesBookForm.lang || 'EN',
+            available: editSeriesBookForm.available === true,
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Could not create book.');
+      toast('Book added to series', 'success');
+      setEditSeriesBookForm({});
+      setShowEditSeriesBook(false);
+      await loadCatalog();
+    } catch (error) {
+      toast(error.message || 'Could not create book in series', 'error');
+    }
+    setMembershipBusy(false);
+  }
+
   return (
     <div>
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'.75rem'}}>
@@ -789,12 +874,23 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
           <div className="panel-head"><span className="panel-title">All Series</span></div>
           {seriesList.map(s => (
             <div key={s.key} style={{ display:'flex', alignItems:'center', gap:12, padding:'.85rem 1rem', borderTop:'1px solid var(--border)', cursor:'pointer' }}
-              onClick={() => { setEditSeries(s); setSeriesForm({ key:s.key, name:s.name, tag:s.tag }); }}>
+              onClick={() => {
+                setEditSeries(s);
+                setSeriesLangTab('en');
+                setSeriesForm({
+                  key:s.key, name:s.name, name_en:s.name_en || s.name, name_fr:s.name_fr || '', name_es:s.name_es || '',
+                  desc:s.desc || '', desc_en:s.desc_en || s.desc || '', desc_fr:s.desc_fr || '', desc_es:s.desc_es || '',
+                  tag:s.tag, hidden:s.hidden === true,
+                });
+              }}>
               <span style={{ fontSize:16 }}>📖</span>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--tx)' }}>{s.name}</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--tx)' }}>{s.name_en || s.name}{s.hidden && <span className="badge" style={{marginLeft:8}}>Hidden</span>}</div>
                 <div style={{ fontSize:11, color:'var(--tx3)' }}>{s.tag} · {s.total} titles · {s.available} live · {s.locked} locked</div>
               </div>
+              <button className="btn btn-s btn-sm" onClick={event => { event.stopPropagation(); toggleSeriesVisibility(s); }}>
+                {s.hidden ? 'Unhide' : 'Hide'}
+              </button>
               <span style={{ fontSize:12, color:'var(--crb)' }}>Edit →</span>
             </div>
           ))}
@@ -810,8 +906,22 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
             </div>
             <div className="modal-body">
               <div className="field-row">
-                <label className="field-label">Series Name</label>
-                <input className="field-input" value={seriesForm.name || ''} onChange={e => setSeriesForm(f => ({...f, name:e.target.value}))} />
+                <label className="field-label">Series Name · {EDITOR_LANGUAGES.find(item => item.id === seriesLangTab)?.label}</label>
+                <LanguageSubpages value={seriesLangTab} onChange={setSeriesLangTab} />
+                <input className="field-input" value={seriesForm[`name_${seriesLangTab}`] || ''}
+                  onChange={e => setSeriesForm(f => ({
+                    ...f, [`name_${seriesLangTab}`]:e.target.value,
+                    ...(seriesLangTab === 'en' ? { name:e.target.value } : {}),
+                  }))} />
+              </div>
+              <div className="field-row">
+                <label className="field-label">Short Description · {EDITOR_LANGUAGES.find(item => item.id === seriesLangTab)?.label}</label>
+                <textarea className="field-input field-textarea" style={{minHeight:70}}
+                  value={seriesForm[`desc_${seriesLangTab}`] || ''}
+                  onChange={e => setSeriesForm(f => ({
+                    ...f, [`desc_${seriesLangTab}`]:e.target.value,
+                    ...(seriesLangTab === 'en' ? { desc:e.target.value } : {}),
+                  }))} />
               </div>
               <div className="field-row">
                 <label className="field-label">Genre / Category</label>
@@ -865,6 +975,49 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                   </button>
                 </div>
               </div>
+              <div className="panel" style={{ marginTop:'.75rem' }}>
+                <div className="panel-head" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span className="panel-title">Create a new title in this series</span>
+                  <button className="btn btn-s btn-sm" onClick={() => setShowEditSeriesBook(value => !value)}>
+                    {showEditSeriesBook ? 'Close' : '+ New Title'}
+                  </button>
+                </div>
+                {showEditSeriesBook && (
+                  <div className="panel-body">
+                    <label className="field-label">Book Title · {EDITOR_LANGUAGES.find(item => item.id === editSeriesBookLangTab)?.label}</label>
+                    <LanguageSubpages value={editSeriesBookLangTab} onChange={setEditSeriesBookLangTab} />
+                    <input className="field-input" value={editSeriesBookForm[`title_${editSeriesBookLangTab}`] || ''}
+                      onChange={event => setEditSeriesBookForm(form => ({
+                        ...form, [`title_${editSeriesBookLangTab}`]:event.target.value,
+                      }))} placeholder={`Title in ${EDITOR_LANGUAGES.find(item => item.id === editSeriesBookLangTab)?.label}`} />
+                    <div className="two-col" style={{marginTop:'.75rem'}}>
+                      <div className="field-row">
+                        <label className="field-label">Language availability</label>
+                        <select className="field-input field-select" value={editSeriesBookForm.lang || 'EN'}
+                          onChange={event => setEditSeriesBookForm(form => ({...form, lang:event.target.value}))}>
+                          {(content.options?.bookLanguages || DEFAULT_SITE_CONTENT.options.bookLanguages).map(option =>
+                            <option key={option.value} value={option.value}>{option.labels.en || option.value}</option>
+                          )}
+                        </select>
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Status</label>
+                        <select className="field-input field-select" value={editSeriesBookForm.available ? 'true' : 'false'}
+                          onChange={event => setEditSeriesBookForm(form => ({...form, available:event.target.value === 'true'}))}>
+                          <option value="false">Locked / Forthcoming</option>
+                          <option value="true">Available now</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.5rem'}}>
+                      <button className="btn btn-p btn-sm" disabled={membershipBusy || !editSeriesBookForm.title_en?.trim()}
+                        onClick={createBookInSeries}>
+                        {membershipBusy ? <><span className="spinner"/> Creating…</> : 'Create Title in Series'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="modal-foot">
               <button className="btn btn-s" onClick={() => setEditSeries(null)}>Cancel</button>
@@ -885,9 +1038,13 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
             </div>
             <div className="modal-body">
               <div className="field-row">
-                <label className="field-label">Series Name <span style={{color:'var(--crb)'}}>*</span></label>
-                <input className="field-input" autoFocus value={newSeriesForm.name}
-                  onChange={e => setNewSeriesForm(f => ({...f, name:e.target.value}))}
+                <label className="field-label">Series Name · {EDITOR_LANGUAGES.find(item => item.id === newSeriesLangTab)?.label} <span style={{color:'var(--crb)'}}>*</span></label>
+                <LanguageSubpages value={newSeriesLangTab} onChange={setNewSeriesLangTab} />
+                <input className="field-input" autoFocus value={newSeriesForm[`name_${newSeriesLangTab}`] || ''}
+                  onChange={e => setNewSeriesForm(f => ({
+                    ...f, [`name_${newSeriesLangTab}`]:e.target.value,
+                    ...(newSeriesLangTab === 'en' ? { name:e.target.value } : {}),
+                  }))}
                   placeholder="e.g. The Atlas Protocol" />
               </div>
               <div className="field-row">
@@ -912,11 +1069,13 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                 )}
               </div>
               <div className="field-row">
-                <label className="field-label">Short Description</label>
-                <textarea className="field-input field-textarea" style={{minHeight:60}} value={newSeriesForm.desc}
-                  onChange={e => setNewSeriesForm(f => ({...f, desc:e.target.value}))}
+                <label className="field-label">Short Description · {EDITOR_LANGUAGES.find(item => item.id === newSeriesLangTab)?.label}</label>
+                <textarea className="field-input field-textarea" style={{minHeight:70}} value={newSeriesForm[`desc_${newSeriesLangTab}`] || ''}
+                  onChange={e => setNewSeriesForm(f => ({
+                    ...f, [`desc_${newSeriesLangTab}`]:e.target.value,
+                    ...(newSeriesLangTab === 'en' ? { desc:e.target.value } : {}),
+                  }))}
                   placeholder="One or two sentences about the series…" />
-                <div className="field-hint">You can add richer series-page copy later.</div>
               </div>
 
               <div className="panel" style={{marginTop:'.75rem'}}>
@@ -960,8 +1119,11 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                       <code style={{fontSize:12,color:'var(--crb)'}}>{newBookAutoKey || 'Type a title to generate key…'}</code>
                     </div>
                     <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
-                      <label className="field-label">Title <span style={{color:'var(--crb)'}}>*</span></label>
-                      <input className="field-input" value={newBookForm.title||''} onChange={e=>setNewBookForm(f=>({...f,title:e.target.value}))} placeholder="e.g. The Atlas Protocol: Book 1" />
+                      <label className="field-label">Book Title · {EDITOR_LANGUAGES.find(item => item.id === embeddedBookLangTab)?.label}</label>
+                      <LanguageSubpages value={embeddedBookLangTab} onChange={setEmbeddedBookLangTab} />
+                      <input className="field-input" value={newBookForm[`title_${embeddedBookLangTab}`] || ''}
+                        onChange={e=>setNewBookForm(f=>({...f,[`title_${embeddedBookLangTab}`]:e.target.value}))}
+                        placeholder="e.g. The Atlas Protocol: Book 1" />
                     </div>
                     <div className="field-row" style={{margin:'.75rem 1rem 0'}}>
                       <label className="field-label">Subtitle</label>
@@ -1009,7 +1171,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                       <textarea className="field-input field-textarea" style={{minHeight:60}} value={newBookForm.synopsis||''} onChange={e=>setNewBookForm(f=>({...f,synopsis:e.target.value}))} placeholder="Brief description for readers…" />
                     </div>
                     <div style={{display:'flex',justifyContent:'flex-end',padding:'.75rem 1rem'}}>
-                      <button className="btn btn-s btn-sm" disabled={!newBookForm.title} onClick={stageNewBook}>
+                      <button className="btn btn-s btn-sm" disabled={!newBookForm.title_en?.trim()} onClick={stageNewBook}>
                         + Stage This Book
                       </button>
                     </div>
@@ -1019,7 +1181,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
             </div>
             <div className="modal-foot">
               <button className="btn btn-s" onClick={closeNewSeries}>Cancel</button>
-              <button className="btn btn-p" onClick={createSeriesWithBooks} disabled={creatingSeries || !newSeriesForm.name.trim()}>
+              <button className="btn btn-p" onClick={createSeriesWithBooks} disabled={creatingSeries || !newSeriesForm.name_en.trim()}>
                 {creatingSeries ? <><span className="spinner"/> Creating...</> : 'Create Series'}
               </button>
             </div>
@@ -1430,8 +1592,23 @@ export default function AdminDashboard() {
   const [searchQ, setSearchQ] = useState('');
   const [filterSeries, setFilterSeries] = useState('all');
   const [filterAvail, setFilterAvail] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterSubcategory, setFilterSubcategory] = useState('all');
+  const [filterGenre, setFilterGenre] = useState('all');
+  const [filterSubject, setFilterSubject] = useState('all');
+  const [filterAudience, setFilterAudience] = useState('all');
+  const [filterContentType, setFilterContentType] = useState('all');
+  const [filterPublicationStatus, setFilterPublicationStatus] = useState('all');
+  const [filterFormat, setFilterFormat] = useState('all');
+  const [filterListingStatus, setFilterListingStatus] = useState('all');
+  const [filterLanguage, setFilterLanguage] = useState('all');
+  const [filterDistributionChannel, setFilterDistributionChannel] = useState('all');
+  const [filterKdpMarketplace, setFilterKdpMarketplace] = useState('');
+  const [filterAgeMin, setFilterAgeMin] = useState('');
+  const [filterAgeMax, setFilterAgeMax] = useState('');
   const [editBook, setEditBook] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [editTitleLangTab, setEditTitleLangTab] = useState('en');
   const [synopsisBook, setSynopsisBook] = useState(null);
   const [synopsisForm, setSynopsisForm] = useState({ en:'', fr:'', es:'', links:{} });
   const [toasts, setToasts] = useState([]);
@@ -1453,6 +1630,7 @@ export default function AdminDashboard() {
   const [headerSaving, setHeaderSaving] = useState(false);
   const [showAddTitle, setShowAddTitle] = useState(false);
   const [addForm, setAddForm] = useState({});
+  const [addTitleLangTab, setAddTitleLangTab] = useState('en');
   const [addSaving, setAddSaving] = useState(false);
   const [autoKey, setAutoKey] = useState('');
   const [siteLocked, setSiteLocked] = useState(null);
@@ -1534,19 +1712,19 @@ export default function AdminDashboard() {
 
   // Auto-generate book key as user types title
   useEffect(() => {
-    if (!addForm.title || addForm.title.length < 3) { setAutoKey(''); return; }
+    if (!addForm.title_en || addForm.title_en.length < 3) { setAutoKey(''); return; }
     const timer = setTimeout(() => {
       fetch('/api/admin/add-book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ previewKey: addForm.title }),
+        body: JSON.stringify({ previewKey: addForm.title_en }),
       })
         .then(r => r.json())
         .then(d => { if (d.key) setAutoKey(d.key); })
         .catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
-  }, [addForm.title]);
+  }, [addForm.title_en]);
 
   // ── Toast ────────────────────────────────────────────────
   const toast = useCallback((msg, type = 'success') => {
@@ -1783,11 +1961,43 @@ export default function AdminDashboard() {
   // ── Filtered books ───────────────────────────────────────
   const filteredBooks = data ? data.books.filter(b => {
     const q = searchQ.toLowerCase();
-    const matchQ = !q || b.title.toLowerCase().includes(q) || b.genre.toLowerCase().includes(q) ||
-      b.series.toLowerCase().includes(q) || b.key.toLowerCase().includes(q);
+    const authorNames = (b.contributors || []).map(contributor =>
+      data.publishing?.authors?.find(author => author.id === contributor.authorId)?.name || '',
+    );
+    const searchable = [
+      b.title, b.subtitle, b.genre, b.series, b.key, b.sotrBookId, ...authorNames,
+    ].map(value => String(value || '').toLowerCase());
+    const matchQ = !q || searchable.some(value => value.includes(q));
     const matchSeries = filterSeries === 'all' || b.seriesKey === filterSeries || (!b.seriesKey && filterSeries === 'standalone');
     const matchAvail = filterAvail === 'all' || (filterAvail === 'available' ? b.available : !b.available);
-    return matchQ && matchSeries && matchAvail;
+    const matchCategory = filterCategory === 'all' || b.publishingCategoryId === filterCategory;
+    const matchSubcategory = filterSubcategory === 'all' || b.publishingSubcategoryId === filterSubcategory;
+    const matchGenre = filterGenre === 'all' || (b.genreIds || []).includes(filterGenre);
+    const matchSubject = filterSubject === 'all' || (b.subjectIds || []).includes(filterSubject);
+    const matchAudience = filterAudience === 'all' || b.targetAudienceId === filterAudience;
+    const matchContentType = filterContentType === 'all' || b.contentTypeId === filterContentType;
+    const matchPublicationStatus = filterPublicationStatus === 'all' ||
+      (filterPublicationStatus === 'unclassified' ? !b.publicationStatus : b.publicationStatus === filterPublicationStatus);
+    const matchFormat = filterFormat === 'all' || (b.editions || []).some(edition => edition.formatId === filterFormat);
+    const matchListingStatus = filterListingStatus === 'all' || (b.editions || []).some(edition =>
+      (edition.listings || []).some(listing => listing.status === filterListingStatus),
+    );
+    const matchLanguage = filterLanguage === 'all' || b.originalLanguageId === filterLanguage ||
+      (b.editions || []).some(edition => (edition.languageIds || []).includes(filterLanguage));
+    const matchDistributionChannel = filterDistributionChannel === 'all' || (b.editions || []).some(edition =>
+      (edition.listings || []).some(listing => listing.channelId === filterDistributionChannel),
+    );
+    const marketplaceQuery = filterKdpMarketplace.trim().toLowerCase();
+    const matchKdpMarketplace = !marketplaceQuery || (b.editions || []).some(edition =>
+      (edition.listings || []).some(listing => String(listing.kdpMapping?.marketplace || '').toLowerCase().includes(marketplaceQuery)),
+    );
+    const hasAgeRange = b.ageRangeMin !== '' && b.ageRangeMin != null || b.ageRangeMax !== '' && b.ageRangeMax != null;
+    const matchAgeMin = !filterAgeMin || hasAgeRange && (b.ageRangeMax === '' || b.ageRangeMax == null || Number(b.ageRangeMax) >= Number(filterAgeMin));
+    const matchAgeMax = !filterAgeMax || hasAgeRange && (b.ageRangeMin === '' || b.ageRangeMin == null || Number(b.ageRangeMin) <= Number(filterAgeMax));
+    return matchQ && matchSeries && matchAvail && matchCategory && matchSubcategory &&
+      matchGenre && matchSubject && matchAudience && matchContentType &&
+      matchPublicationStatus && matchFormat && matchListingStatus && matchLanguage &&
+      matchDistributionChannel && matchKdpMarketplace && matchAgeMin && matchAgeMax;
   }) : [];
 
   // ════════════════════════════════════════════════════════
@@ -1933,6 +2143,9 @@ export default function AdminDashboard() {
   function renderCatalog() {
     return (
       <div>
+        {data?.publishing?.schemaVersion < 1 && <div className="panel" style={{ marginBottom: '1rem' }}>
+          <div className="panel-body" style={{ color: 'var(--tx2)' }}>Run the publishing catalogue migration before using the normalized classification filters.</div>
+        </div>}
         <div className="panel" style={{ marginBottom:'1rem' }}>
           <div className="panel-body" style={{ display:'flex', gap:.5, flexWrap:'wrap', alignItems:'center', padding:'.75rem' }}>
             <div className="search-wrap">
@@ -1943,12 +2156,7 @@ export default function AdminDashboard() {
             <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }}
               value={filterSeries} onChange={e => setFilterSeries(e.target.value)}>
               <option value="all">All Series</option>
-              <option value="mercer">The Mercer Files</option>
-              <option value="anatomy">Anatomy of Micro-Societies</option>
-              <option value="crooked">Crooked Cross Chronicles</option>
-              <option value="ir">IR Theory Works</option>
-              <option value="poetry">Poetry</option>
-              <option value="little">Mr / Ms Little</option>
+              {(data?.series || []).map(series => <option key={series.key} value={series.key}>{series.name}</option>)}
               <option value="standalone">Standalone</option>
             </select>
             <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }}
@@ -1957,8 +2165,73 @@ export default function AdminDashboard() {
               <option value="available">Available</option>
               <option value="locked">Locked</option>
             </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }}
+              value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setFilterSubcategory('all'); }}>
+              <option value="all">All publishing categories</option>
+              {(data?.publishing?.categories || []).map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }}
+              value={filterSubcategory} onChange={e => setFilterSubcategory(e.target.value)} disabled={filterCategory === 'all'}>
+              <option value="all">All subcategories</option>
+              {(data?.publishing?.subcategories || []).filter(subcategory => subcategory.parentId === filterCategory).map(subcategory => <option key={subcategory.id} value={subcategory.id}>{subcategory.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterGenre} onChange={e => setFilterGenre(e.target.value)}>
+              <option value="all">All genres</option>
+              {(data?.publishing?.genres || []).filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterSubject} onChange={e => setFilterSubject(e.target.value)}>
+              <option value="all">All subjects</option>
+              {(data?.publishing?.subjects || []).filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterAudience} onChange={e => setFilterAudience(e.target.value)}>
+              <option value="all">All audiences</option>
+              {(data?.publishing?.audiences || []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterContentType} onChange={e => setFilterContentType(e.target.value)}>
+              <option value="all">All content types</option>
+              {(data?.publishing?.contentTypes || []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterPublicationStatus} onChange={e => setFilterPublicationStatus(e.target.value)}>
+              <option value="all">All publication statuses</option>
+              <option value="unclassified">Not classified</option>
+              {['draft','in-development','ready-for-publication','published','discontinued'].map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+              <option value="all">All edition formats</option>
+              {(data?.publishing?.formats || []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterListingStatus} onChange={e => setFilterListingStatus(e.target.value)}>
+              <option value="all">All listing statuses</option>
+              {['not-submitted','in-review','published','unavailable','discontinued','unverified'].map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterLanguage} onChange={e => setFilterLanguage(e.target.value)}>
+              <option value="all">All edition languages</option>
+              {(data?.publishing?.languages || []).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="field-input field-select" style={{ width:'auto', marginLeft:'.5rem' }} value={filterDistributionChannel} onChange={e => setFilterDistributionChannel(e.target.value)}>
+              <option value="all">All distribution channels</option>
+              {(data?.publishing?.distributionChannels || []).filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <input className="field-input" style={{ width:150 }} placeholder="KDP marketplace" value={filterKdpMarketplace} onChange={e => setFilterKdpMarketplace(e.target.value)} />
+            <input type="number" min="0" className="field-input" style={{ width:100 }} placeholder="Age from" value={filterAgeMin} onChange={e => setFilterAgeMin(e.target.value)} />
+            <input type="number" min="0" className="field-input" style={{ width:100 }} placeholder="Age to" value={filterAgeMax} onChange={e => setFilterAgeMax(e.target.value)} />
             <span style={{ marginLeft:'auto', fontSize:12, color:'var(--tx3)' }}>{filteredBooks.length} titles</span>
-            <button className="btn btn-p btn-sm" onClick={() => { setAddForm({}); setAutoKey(''); setShowAddTitle(true); }}>+ Add Title</button>
+            <button className="btn btn-p btn-sm" onClick={() => {
+              setAddForm({
+                title:'', title_en:'', title_fr:'', title_es:'',
+                publicationStatus:'draft',
+                seriesMemberships:[],
+                contributors:[],
+                editions:[],
+                collectionIds:[],
+                genreIds:[],
+                subjectIds:[],
+                publisherId: data?.publishing?.publishers?.find(item => item.name === 'SPY ON THE RISE')?.id || '',
+              });
+              setAddTitleLangTab('en');
+              setAutoKey('');
+              setShowAddTitle(true);
+            }}>+ Add Title</button>
           </div>
         </div>
 
@@ -1970,6 +2243,7 @@ export default function AdminDashboard() {
                 <th>Key</th>
                 <th>Title</th>
                 <th>Series</th>
+                <th>Publishing category</th>
                 <th>Genre</th>
                 <th>Status</th>
                 <th>Price</th>
@@ -1978,7 +2252,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {filteredBooks.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'var(--tx3)' }}>No titles match your filters</td></tr>
+                <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'var(--tx3)' }}>No titles match your filters</td></tr>
               )}
               {filteredBooks.map(b => (
                 <tr key={b.key}>
@@ -2017,6 +2291,10 @@ export default function AdminDashboard() {
                     {b.subtitle && <div style={{ fontSize:11, color:'var(--tx3)' }}>{b.subtitle}</div>}
                   </td>
                   <td><span className="badge badge-series" style={{ fontSize:10 }}>{b.series?.replace('Anatomy of Micro-Societies','AMS').replace('The Mercer Files','Mercer').replace('The Crooked Cross Chronicles','CCC') || 'N/A'}</span></td>
+                  <td style={{ fontSize:11 }}>
+                    {data?.publishing?.categories?.find(category => category.id === b.publishingCategoryId)?.label || '—'}
+                    {b.publishingSubcategoryId && <div style={{ color:'var(--tx3)' }}>{data?.publishing?.subcategories?.find(item => item.id === b.publishingSubcategoryId)?.label}</div>}
+                  </td>
                   <td><span className="badge badge-genre">{b.genre}</span></td>
                   <td>
                     <button className="avail-toggle" onClick={() => toggleAvail(b.key, b.available)}>
@@ -2030,7 +2308,16 @@ export default function AdminDashboard() {
                   <td>
                     <div style={{ display:'flex', gap:4 }}>
                       <button className="btn btn-s btn-sm btn-icon" title="Edit book details"
-                        onClick={() => { setEditBook(b); setEditForm({ title:b.title, subtitle:b.subtitle, price:b.price, release:b.release, color:b.color, lang:b.lang, genre:b.genre, vol:b.vol, pages:b.pages, series:b.series, seriesKey:b.seriesKey }); }}>
+                        onClick={() => { setEditBook(b); setEditTitleLangTab('en'); setEditForm({
+                          title:b.title, title_en:b.title_en || b.title, title_fr:b.title_fr || '', title_es:b.title_es || '',
+                          subtitle:b.subtitle, price:b.price, release:b.release, color:b.color, lang:b.lang, genre:b.genre, vol:b.vol, pages:b.pages, series:b.series, seriesKey:b.seriesKey,
+                          sotrBookId:b.sotrBookId, publishingCategoryId:b.publishingCategoryId, publishingSubcategoryId:b.publishingSubcategoryId,
+                          genreIds:b.genreIds, primaryGenreId:b.primaryGenreId, subjectIds:b.subjectIds, primarySubjectId:b.primarySubjectId,
+                          contentTypeId:b.contentTypeId, targetAudienceId:b.targetAudienceId, ageRangeMin:b.ageRangeMin, ageRangeMax:b.ageRangeMax,
+                          readingLevelId:b.readingLevelId, originalLanguageId:b.originalLanguageId, publicationStatus:b.publicationStatus,
+                          collectionIds:b.collectionIds, contributors:b.contributors, seriesMemberships:b.seriesMemberships, editions:b.editions,
+                          publisherId:b.publisherId,
+                        }); }}>
                         ✏️
                       </button>
                       <button className="btn btn-s btn-sm btn-icon" title="Edit synopses"
@@ -2363,6 +2650,7 @@ export default function AdminDashboard() {
     platforms: { label:'Platforms', icon:'🛒', render: () => <PlatformsAdmin toast={toast} /> },
     series: { label:'Series', icon:'📖', render: () => <SeriesAdmin data={data} toast={toast} loadCatalog={loadCatalog} content={siteContent} /> },
     content: { label:'Contenu', icon:'✍️', render: () => <ContentAdmin content={siteContent} chrome={contentChrome} onSave={saveContent} saving={contentSaving} /> },
+    publishing: { label:'Publishing', icon:'🗂️', render: () => <PublishingAdmin data={data} toast={toast} loadCatalog={loadCatalog} /> },
     dashboard: { label:'Dashboard', icon:'⬡', render: renderDashboard },
     catalog: { label:'Catalog', icon:'📚', render: renderCatalog },
     availability: { label:'Availability', icon:'🔓', render: renderAvailability },
@@ -2523,8 +2811,13 @@ export default function AdminDashboard() {
               </div>
               <div className="two-col">
                 <div className="field-row">
-                  <label className="field-label">Title</label>
-                  <input className="field-input" value={editForm.title||''} onChange={e => setEditForm(f => ({...f,title:e.target.value}))} />
+                  <label className="field-label">Title · {EDITOR_LANGUAGES.find(item => item.id === editTitleLangTab)?.label}</label>
+                  <LanguageSubpages value={editTitleLangTab} onChange={setEditTitleLangTab} />
+                  <input className="field-input" value={editForm[`title_${editTitleLangTab}`] || ''}
+                    onChange={e => setEditForm(f => ({
+                      ...f, [`title_${editTitleLangTab}`]:e.target.value,
+                      ...(editTitleLangTab === 'en' ? { title:e.target.value } : {}),
+                    }))} />
                 </div>
                 <div className="field-row">
                   <label className="field-label">Subtitle</label>
@@ -2561,7 +2854,11 @@ export default function AdminDashboard() {
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Genre</label>
-                  <select className="field-input field-select" value={editForm.genre||''} onChange={e => setEditForm(f => ({...f,genre:e.target.value}))}>
+                  <select className="field-input field-select" value={editForm.genre||''} onChange={e => {
+                    const genre = e.target.value;
+                    const match = data?.publishing?.genres?.find(item => item.label === genre);
+                    setEditForm(f => ({ ...f, genre, genreIds: match ? [match.id] : [], primaryGenreId: match?.id || '' }));
+                  }}>
                     {(siteContent.options?.bookGenres || DEFAULT_SITE_CONTENT.options.bookGenres).map(genre =>
                       <option key={genre} value={genre}>{genre}</option>
                     )}
@@ -2572,16 +2869,7 @@ export default function AdminDashboard() {
                   <input className="field-input" value={editForm.pages||''} onChange={e => setEditForm(f => ({...f,pages:e.target.value}))} placeholder="320" />
                 </div>
               </div>
-              <div className="two-col">
-                <div className="field-row">
-                  <label className="field-label">Series Name</label>
-                  <input className="field-input" value={editForm.series||''} onChange={e => setEditForm(f => ({...f,series:e.target.value}))} placeholder="The Mercer Files" />
-                </div>
-                <div className="field-row">
-                  <label className="field-label">Volume</label>
-                  <input className="field-input" value={editForm.vol||''} onChange={e => setEditForm(f => ({...f,vol:e.target.value}))} placeholder="1" />
-                </div>
-              </div>
+              <PublishingFields form={editForm} setForm={setEditForm} publishing={data?.publishing} series={data?.series} />
             </div>
             <div className="modal-foot">
               <button className="btn btn-s" onClick={() => setEditBook(null)}>Cancel</button>
@@ -2725,8 +3013,13 @@ export default function AdminDashboard() {
               </div>
               <div className="two-col">
                 <div className="field-row">
-                  <label className="field-label">Title <span style={{color:'var(--crb)'}}>*</span></label>
-                  <input className="field-input" value={addForm.title||''} onChange={e=>setAddForm(f=>({...f,title:e.target.value}))} placeholder="e.g. The Mercer Files: Book 8" autoFocus />
+                  <label className="field-label">Title · {EDITOR_LANGUAGES.find(item => item.id === addTitleLangTab)?.label} <span style={{color:'var(--crb)'}}>* English required</span></label>
+                  <LanguageSubpages value={addTitleLangTab} onChange={setAddTitleLangTab} />
+                  <input className="field-input" value={addForm[`title_${addTitleLangTab}`] || ''}
+                    onChange={e=>setAddForm(f=>({
+                      ...f, [`title_${addTitleLangTab}`]:e.target.value,
+                      ...(addTitleLangTab === 'en' ? { title:e.target.value } : {}),
+                    }))} placeholder="e.g. The Mercer Files: Book 8" autoFocus />
                 </div>
                 <div className="field-row">
                   <label className="field-label">Subtitle</label>
@@ -2736,21 +3029,16 @@ export default function AdminDashboard() {
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Genre</label>
-                  <select className="field-input field-select" value={addForm.genre||''} onChange={e=>setAddForm(f=>({...f,genre:e.target.value}))}>
+                  <select className="field-input field-select" value={addForm.genre||''} onChange={e=>{
+                    const genre = e.target.value;
+                    const match = data?.publishing?.genres?.find(item => item.label === genre);
+                    setAddForm(f=>({...f,genre,genreIds:match?[match.id]:[],primaryGenreId:match?.id||''}));
+                  }}>
                     <option value="">Select genre…</option>
                     {(siteContent.options?.bookGenres || DEFAULT_SITE_CONTENT.options.bookGenres).map(g=><option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
-                <div className="field-row">
-                  <label className="field-label">Series</label>
-                  <select className="field-input field-select" value={addForm.series||''} onChange={e=>{
-                    const sel = data?.series?.find(s=>s.name===e.target.value);
-                    setAddForm(f=>({...f,series:e.target.value,seriesKey:sel?.key||null}));
-                  }}>
-                    <option value="">Standalone</option>
-                    {data?.series?.map(s=><option key={s.key} value={s.name}>{s.name}</option>)}
-                  </select>
-                </div>
+                <div />
               </div>
               <div className="two-col">
                 <div className="field-row">
@@ -2761,10 +3049,7 @@ export default function AdminDashboard() {
                     )}
                   </select>
                 </div>
-                <div className="field-row">
-                  <label className="field-label">Volume / Number</label>
-                  <input className="field-input" value={addForm.vol||''} onChange={e=>setAddForm(f=>({...f,vol:e.target.value}))} placeholder="e.g. Vol. 8" />
-                </div>
+                <div />
               </div>
               <div className="two-col">
                 <div className="field-row">
@@ -2801,21 +3086,22 @@ export default function AdminDashboard() {
                 <textarea className="field-input field-textarea" style={{minHeight:80}} value={addForm.synopsis||''} onChange={e=>setAddForm(f=>({...f,synopsis:e.target.value}))} placeholder="Brief description for readers…" />
                 <div className="field-hint">You can add FR and ES synopses later via the 📝 editor.</div>
               </div>
+              <PublishingFields form={addForm} setForm={setAddForm} publishing={data?.publishing} series={data?.series} />
             </div>
             <div className="modal-foot">
               <button className="btn btn-s" onClick={() => setShowAddTitle(false)}>Cancel</button>
-              <button className="btn btn-p" disabled={addSaving || !addForm.title} onClick={async () => {
-                if (!addForm.title) { toast('Title is required', 'error'); return; }
+              <button className="btn btn-p" disabled={addSaving || !addForm.title_en?.trim()} onClick={async () => {
+                if (!addForm.title_en?.trim()) { toast('English title is required', 'error'); return; }
                 setAddSaving(true);
                 try {
                   const r = await fetch('/api/admin/add-book', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bookData: { ...addForm, key: autoKey } }),
+                    body: JSON.stringify({ bookData: { ...addForm, title:addForm.title_en.trim(), title_en:addForm.title_en.trim(), key: autoKey } }),
                   });
                   const d = await r.json();
                   if (d.success) {
-                    toast(`"${addForm.title}" added to catalog (key: ${d.key})`, 'success');
+                    toast(`"${addForm.title_en}" added to catalog (key: ${d.key})`, 'success');
                     setShowAddTitle(false);
                     setAddForm({});
                     setAutoKey('');
