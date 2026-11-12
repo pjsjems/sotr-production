@@ -37,9 +37,33 @@ function LanguageSubpages({ value, onChange }) {
   );
 }
 
-function LanguageCoverField({ form, setForm, language, fieldPrefix }) {
+function LanguageCoverField({ form, setForm, language, fieldPrefix, entityType, entityKey, toast, onRemoved }) {
   const field = `${fieldPrefix}_${language}`;
   const fileField = `_coverFile_${language}`;
+  const targetsField = `_coverTargets_${language}`;
+  const sizeField = `${fieldPrefix === 'cover' ? 'coverSize' : 'imageSize'}_${language}`;
+  const targets = form[targetsField] || [language];
+  const imageSize = form[sizeField] || 'large';
+  const removeImage = async () => {
+    try {
+      const response = await fetch('/api/admin/delete-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entityType, entityKey, language }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Could not remove image.');
+      setForm(current => ({
+        ...current,
+        [field]: '',
+        ...(fieldPrefix === 'image' && language === 'en' ? { image: '' } : {}),
+      }));
+      toast?.(result.warning || 'Image removed from this language.', result.warning ? 'warning' : 'success');
+      onRemoved?.();
+    } catch (error) {
+      toast?.(`Could not remove image: ${error.message}`, 'error');
+    }
+  };
   return (
     <div className="field-row">
       <label className="field-label">Cover Image · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
@@ -47,17 +71,48 @@ function LanguageCoverField({ form, setForm, language, fieldPrefix }) {
         onChange={event => setForm(current => ({
           ...current,
           [fileField]: event.target.files?.[0] || null,
+          [targetsField]: current[targetsField] || [language],
         }))} />
       {form[fileField]
         ? <div className="field-hint">Selected: {form[fileField].name}</div>
         : form[field]
           ? <div className="field-hint"><img src={form[field]} alt="" style={{ maxWidth: 100, maxHeight: 140, objectFit: 'cover', display: 'block', marginBottom: 4 }} />Current language cover</div>
           : <div className="field-hint">No cover selected for this language.</div>}
+      <div className="field-row" style={{ marginTop:'.5rem' }}>
+        <label className="field-label">Use this image for</label>
+        <div style={{ display:'flex', gap:'1rem', flexWrap:'wrap' }}>
+          {EDITOR_LANGUAGES.map(item => (
+            <label key={item.id} style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12 }}>
+              <input type="checkbox" checked={targets.includes(item.id)} onChange={event => setForm(current => {
+                const currentTargets = current[targetsField] || [language];
+                const nextTargets = event.target.checked
+                  ? [...new Set([...currentTargets, item.id])]
+                  : currentTargets.filter(target => target !== item.id);
+                return { ...current, [targetsField]: nextTargets };
+              })} />
+              {item.label}
+            </label>
+          ))}
+        </div>
+        <div className="field-hint">One uploaded image can be assigned to any selected languages.</div>
+      </div>
+      <div className="field-row">
+        <label className="field-label">Image display size · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
+        <select className="field-input field-select" value={imageSize}
+          onChange={event => setForm(current => ({ ...current, [sizeField]:event.target.value }))}>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </div>
+      {form[field] && entityKey && (
+        <button type="button" className="btn btn-warn btn-sm" onClick={removeImage}>Delete this language's image</button>
+      )}
     </div>
   );
 }
 
-function LocalizedBookFields({ form, setForm, language }) {
+function LocalizedBookFields({ form, setForm, language, entityKey, toast, onCoverRemoved }) {
   const update = (field, value) => setForm(current => ({
     ...current,
     [`${field}_${language}`]: value,
@@ -95,7 +150,8 @@ function LocalizedBookFields({ form, setForm, language }) {
         <input className="field-input" value={form[`vol_${language}`] ?? (language === 'en' ? form.vol || '' : '')}
           onChange={event => update('vol', event.target.value)} />
       </div>
-      <LanguageCoverField form={form} setForm={setForm} language={language} fieldPrefix="image" />
+      <LanguageCoverField form={form} setForm={setForm} language={language} fieldPrefix="image"
+        entityType="book" entityKey={entityKey} toast={toast} onRemoved={onCoverRemoved} />
       <div className="field-row">
         <label className="field-label">Synopsis · {EDITOR_LANGUAGES.find(item => item.id === language)?.label}</label>
         <textarea className="field-input field-textarea" style={{ minHeight: 75 }}
@@ -107,25 +163,39 @@ function LocalizedBookFields({ form, setForm, language }) {
 }
 
 function withoutCoverFiles(form) {
-  return Object.fromEntries(Object.entries(form || {}).filter(([field]) => !field.startsWith('_coverFile_')));
+  return Object.fromEntries(Object.entries(form || {}).filter(([field]) =>
+    !field.startsWith('_coverFile_') && !field.startsWith('_coverTargets_'),
+  ));
 }
 
 async function uploadLocalizedCovers(entityType, entityKey, form) {
   const uploaded = {};
+  const assignedLanguages = new Set();
   for (const language of EDITOR_LANGUAGES) {
     const file = form?.[`_coverFile_${language.id}`];
     if (!file) continue;
+    const targets = form?.[`_coverTargets_${language.id}`] || [language.id];
+    if (!Array.isArray(targets) || !targets.length || !targets.includes(language.id)) {
+      throw new Error(`Select at least the ${language.label} language for its image.`);
+    }
+    const conflict = targets.find(target => assignedLanguages.has(target));
+    if (conflict) throw new Error(`More than one uploaded image targets ${conflict.toUpperCase()}.`);
+    targets.forEach(target => assignedLanguages.add(target));
     const body = new FormData();
     body.append('entityType', entityType);
     body.append('entityKey', entityKey);
     body.append('language', language.id);
+    body.append('languages', JSON.stringify(targets));
     body.append('cover', file);
     const response = await fetch('/api/admin/upload-image', { method: 'POST', body });
     const result = await response.json();
     if (!response.ok || !result.success) {
       throw new Error(result.error || `Could not upload ${language.label} cover.`);
     }
-    uploaded[`${entityType === 'series' ? 'cover' : 'image'}_${language.id}`] = result.image;
+    targets.forEach(target => {
+      uploaded[`${entityType === 'series' ? 'cover' : 'image'}_${target}`] = result.image;
+      uploaded[`_coverFile_${target}`] = null;
+    });
   }
   return uploaded;
 }
@@ -998,6 +1068,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                   conceptBody:s.conceptBody || '', conceptBody_en:s.conceptBody_en || s.conceptBody || '',
                   conceptBody_fr:s.conceptBody_fr || '', conceptBody_es:s.conceptBody_es || '',
                   cover_en:s.cover_en || '', cover_fr:s.cover_fr || '', cover_es:s.cover_es || '',
+                  coverSize_en:s.coverSize_en || 'large', coverSize_fr:s.coverSize_fr || 'large', coverSize_es:s.coverSize_es || 'large',
                   tag:s.tag, hidden:s.hidden === true,
                 });
               }}>
@@ -1031,7 +1102,8 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                     ...(seriesLangTab === 'en' ? { name:e.target.value } : {}),
                   }))} />
               </div>
-              <LanguageCoverField form={seriesForm} setForm={setSeriesForm} language={seriesLangTab} fieldPrefix="cover" />
+              <LanguageCoverField form={seriesForm} setForm={setSeriesForm} language={seriesLangTab} fieldPrefix="cover"
+                entityType="series" entityKey={seriesForm.key} toast={toast} onRemoved={loadCatalog} />
               <div className="field-row">
                 <label className="field-label">Short Description · {EDITOR_LANGUAGES.find(item => item.id === seriesLangTab)?.label}</label>
                 <textarea className="field-input field-textarea" style={{minHeight:70}}
@@ -1125,7 +1197,8 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                       onChange={event => setEditSeriesBookForm(form => ({
                         ...form, [`title_${editSeriesBookLangTab}`]:event.target.value,
                       }))} placeholder={`Title in ${EDITOR_LANGUAGES.find(item => item.id === editSeriesBookLangTab)?.label}`} />
-                    <LocalizedBookFields form={editSeriesBookForm} setForm={setEditSeriesBookForm} language={editSeriesBookLangTab} />
+                    <LocalizedBookFields form={editSeriesBookForm} setForm={setEditSeriesBookForm} language={editSeriesBookLangTab}
+                      toast={toast} />
                     <div className="two-col" style={{marginTop:'.75rem'}}>
                       <div className="field-row">
                         <label className="field-label">Language availability</label>
@@ -1182,7 +1255,8 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                   }))}
                   placeholder="e.g. The Atlas Protocol" />
               </div>
-              <LanguageCoverField form={newSeriesForm} setForm={setNewSeriesForm} language={newSeriesLangTab} fieldPrefix="cover" />
+              <LanguageCoverField form={newSeriesForm} setForm={setNewSeriesForm} language={newSeriesLangTab} fieldPrefix="cover"
+                entityType="series" toast={toast} />
               <div className="field-row">
                 <label className="field-label">Genre / Category</label>
                 {newSeriesForm.tag === '__new__' ? (
@@ -1723,6 +1797,10 @@ export default function AdminDashboard() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [data, setData] = useState(null);
+  const [featuredBookKeys, setFeaturedBookKeys] = useState(['mercer1', 'iran', 'anatomy2', 'chess']);
+  const [footerBookKeys, setFooterBookKeys] = useState([]);
+  const [featuredBooksSaving, setFeaturedBooksSaving] = useState(false);
+  const [footerBooksSaving, setFooterBooksSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [filterSeries, setFilterSeries] = useState('all');
@@ -1792,6 +1870,8 @@ export default function AdminDashboard() {
       if (!r.ok) { setAuth(false); return; }
       const d = await r.json();
       setData(d);
+      if (Array.isArray(d.featuredBookKeys)) setFeaturedBookKeys(d.featuredBookKeys.slice(0, 4));
+      if (Array.isArray(d.footerBookKeys)) setFooterBookKeys(d.footerBookKeys);
       if (typeof d.siteLocked === 'boolean') setSiteLocked(d.siteLocked);
     } catch (e) {
       toast('Failed to load catalog data', 'error');
@@ -1982,6 +2062,23 @@ export default function AdminDashboard() {
       });
       const d = await r.json();
       if (d.success) {
+        const imageSizeResponse = await fetch('/api/admin/book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            key: synopsisBook.key,
+            updates: Object.fromEntries(['en','fr','es'].map(language => [
+              `imageSize_${language}`,
+              synopsisBook[`imageSize_${language}`] || 'large',
+            ])),
+          }),
+        });
+        const imageSizeResult = await imageSizeResponse.json();
+        if (!imageSizeResponse.ok || !imageSizeResult.success) {
+          throw new Error(imageSizeResult.error || 'Could not save cover display size.');
+        }
+        await uploadLocalizedCovers('book', synopsisBook.key, synopsisBook);
         toast('Synopsis saved, live in ~10s', 'success');
         setSynopsisBook(null);
         await loadCatalog();
@@ -2061,6 +2158,50 @@ export default function AdminDashboard() {
       else setHeaderMsg({ type:'error', text: d.error || 'Save failed.' });
     } catch { setHeaderMsg({ type:'error', text:'Request failed.' }); }
     setHeaderSaving(false);
+  }
+
+  async function toggleFeaturedBook(key, checked) {
+    const nextKeys = checked
+      ? [...featuredBookKeys.filter(item => item !== key).slice(0, 3), key]
+      : featuredBookKeys.filter(item => item !== key);
+    setFeaturedBooksSaving(true);
+    try {
+      const response = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ featuredBookKeys: nextKeys }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || `Save failed (${response.status})`);
+      setFeaturedBookKeys(result.config.featuredBookKeys);
+      toast('Homepage banner selection saved.', 'success');
+    } catch (error) {
+      toast(`Failed to update homepage banner: ${error.message}`, 'error');
+    } finally {
+      setFeaturedBooksSaving(false);
+    }
+  }
+
+  async function toggleFooterBook(key, checked) {
+    const nextKeys = checked
+      ? [...footerBookKeys.filter(item => item !== key), key]
+      : footerBookKeys.filter(item => item !== key);
+    setFooterBooksSaving(true);
+    try {
+      const response = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ footerBookKeys: nextKeys }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || `Save failed (${response.status})`);
+      setFooterBookKeys(result.config.footerBookKeys);
+      toast('Footer catalog selection saved.', 'success');
+    } catch (error) {
+      toast(`Failed to update footer catalog: ${error.message}`, 'error');
+    } finally {
+      setFooterBooksSaving(false);
+    }
   }
 
   // ── Restore backup ───────────────────────────────────────
@@ -2383,12 +2524,14 @@ export default function AdminDashboard() {
                 <th>Genre</th>
                 <th>Status</th>
                 <th>Price</th>
+                <th>Homepage banner <span style={{ color:'var(--tx3)', fontWeight:400 }}>({featuredBookKeys.length}/4)</span></th>
+                <th>Footer</th>
                 <th style={{ width:120 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredBooks.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'var(--tx3)' }}>No titles match your filters</td></tr>
+                <tr><td colSpan={11} style={{ textAlign:'center', padding:'2rem', color:'var(--tx3)' }}>No titles match your filters</td></tr>
               )}
               {filteredBooks.map(b => (
                 <tr key={b.key}>
@@ -2442,6 +2585,30 @@ export default function AdminDashboard() {
                   </td>
                   <td style={{ fontSize:12, color:'var(--tx3)' }}>{b.price}</td>
                   <td>
+                    <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, cursor:b.hidden || featuredBooksSaving ? 'not-allowed' : 'pointer', opacity:b.hidden ? .5 : 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={featuredBookKeys.includes(b.key)}
+                        disabled={b.hidden || featuredBooksSaving}
+                        onChange={event => toggleFeaturedBook(b.key, event.target.checked)}
+                        aria-label={`Display ${b.title} in the homepage banner`}
+                      />
+                      {featuredBookKeys.includes(b.key) ? `Spot ${featuredBookKeys.indexOf(b.key) + 1}` : 'Display'}
+                    </label>
+                  </td>
+                  <td>
+                    <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, cursor:b.hidden || footerBooksSaving ? 'not-allowed' : 'pointer', opacity:b.hidden ? .5 : 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={footerBookKeys.includes(b.key)}
+                        disabled={b.hidden || footerBooksSaving}
+                        onChange={event => toggleFooterBook(b.key, event.target.checked)}
+                        aria-label={`Display ${b.title} in the website footer catalog`}
+                      />
+                      {footerBookKeys.includes(b.key) ? 'Shown' : 'Show'}
+                    </label>
+                  </td>
+                  <td>
                     <div style={{ display:'flex', gap:4 }}>
                       <button className="btn btn-s btn-sm btn-icon" title="Edit book details"
                         onClick={() => { setEditBook(b); setEditTitleLangTab('en'); setEditForm({
@@ -2453,6 +2620,7 @@ export default function AdminDashboard() {
                           vol:b.vol, vol_en:b.vol_en || b.vol || '', vol_fr:b.vol_fr || '', vol_es:b.vol_es || '',
                           synopsis:b.synopsis, synopsis_en:b.synopsis_en || b.synopsis || '', synopsis_fr:b.synopsis_fr || '', synopsis_es:b.synopsis_es || '',
                           image:b.image, image_en:b.image_en || b.image || '', image_fr:b.image_fr || '', image_es:b.image_es || '',
+                          imageSize_en:b.imageSize_en || 'large', imageSize_fr:b.imageSize_fr || 'large', imageSize_es:b.imageSize_es || 'large',
                           color:b.color, lang:b.lang, genre:b.genre, pages:b.pages, series:b.series, seriesKey:b.seriesKey,
                           sotrBookId:b.sotrBookId, publishingCategoryId:b.publishingCategoryId, publishingSubcategoryId:b.publishingSubcategoryId,
                           genreIds:b.genreIds, primaryGenreId:b.primaryGenreId, subjectIds:b.subjectIds, primarySubjectId:b.primarySubjectId,
@@ -2926,7 +3094,8 @@ export default function AdminDashboard() {
                     }))} />
                 </div>
               </div>
-              <LocalizedBookFields form={editForm} setForm={setEditForm} language={editTitleLangTab} />
+              <LocalizedBookFields form={editForm} setForm={setEditForm} language={editTitleLangTab}
+                entityKey={editBook.key} toast={toast} onCoverRemoved={loadCatalog} />
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Language</label>
@@ -2982,38 +3151,16 @@ export default function AdminDashboard() {
               <span className="modal-title">Synopses: {synopsisBook.title}</span>
             </div>
             <div className="modal-body">
-              {/* Cover Image Upload */}
-              <div className="field-row" style={{marginBottom:'1.25rem'}}>
-                <label className="field-label">Book Cover Image</label>
-                <div style={{display:'flex',gap:'1rem',alignItems:'flex-start'}}>
-                  <div style={{width:60,height:90,borderRadius:4,background:synopsisBook?.color||'#1C1C1C',flexShrink:0,overflow:'hidden',border:'1px solid var(--border2)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',position:'relative'}}
-                    onClick={()=>document.getElementById('syn-cover-upload-input').click()} title="Click to upload cover image">
-                    {synopsisBook?.image
-                      ? <img src={synopsisBook.image} alt="cover" style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                      : <span style={{fontSize:9,color:'rgba(255,255,255,.3)',textAlign:'center',padding:4}}>Upload</span>}
-                    <div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(0,0,0,.5)',padding:'2px',textAlign:'center',fontSize:8,color:'rgba(255,255,255,.6)'}}>Upload</div>
-                  </div>
-                  <div style={{flex:1}}>
-                    <input id="syn-cover-upload-input" type="file" accept="image/jpeg,image/png,image/webp" style={{display:'none'}}
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        const fd = new FormData();
-                        fd.append('bookKey', synopsisBook.key);
-                        fd.append('cover', file);
-                        toast('Uploading cover...', 'warning');
-                        try {
-                          const r = await fetch('/api/admin/upload-image', {method:'POST',body:fd});
-                          const d = await r.json();
-                          if (d.success) { toast('Cover uploaded', 'success'); await loadCatalog(); }
-                          else toast(d.error, 'error');
-                        } catch { toast('Upload failed', 'error'); }
-                      }} />
-                    {synopsisBook?.image && <div style={{fontSize:11,color:'var(--tx3)',fontFamily:'monospace'}}>{synopsisBook.image}</div>}
-                    {!synopsisBook?.image && <div style={{fontSize:12,color:'var(--tx3)'}}>No cover image yet: click thumbnail to upload.</div>}
-                  </div>
-                </div>
-              </div>
+              <LanguageCoverField
+                form={synopsisBook}
+                setForm={setSynopsisBook}
+                language={activeTab === 'fr' || activeTab === 'es' ? activeTab : 'en'}
+                fieldPrefix="image"
+                entityType="book"
+                entityKey={synopsisBook.key}
+                toast={toast}
+                onRemoved={loadCatalog}
+              />
               <div className="tabs">
                 {[['en','🇬🇧 English'],['fr','🇫🇷 French'],['es','🇪🇸 Spanish'],['urls','🔗 Retail Links']].map(([lang, label]) => (
                   <button key={lang} className={`tab-btn ${activeTab===lang?'active':''}`} onClick={() => setActiveTab(lang)}>{label}</button>
@@ -3113,7 +3260,7 @@ export default function AdminDashboard() {
                     }))} placeholder="e.g. The Mercer Files: Book 8" autoFocus />
                 </div>
               </div>
-              <LocalizedBookFields form={addForm} setForm={setAddForm} language={addTitleLangTab} />
+              <LocalizedBookFields form={addForm} setForm={setAddForm} language={addTitleLangTab} toast={toast} />
               <div className="two-col">
                 <div className="field-row">
                   <label className="field-label">Genre</label>

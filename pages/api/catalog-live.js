@@ -88,6 +88,11 @@ export default async function handler(req, res) {
           fr: book.image_fr || '',
           es: book.image_es || '',
         },
+        imageSizes: {
+          en: book.imageSize_en || 'large',
+          fr: book.imageSize_fr || 'large',
+          es: book.imageSize_es || 'large',
+        },
         synopsis: publicBook.synopsis,
         synopsis_en: publicBook.synopsis_en,
         synopsis_fr: book.synopsis_fr || '',
@@ -156,6 +161,11 @@ export default async function handler(req, res) {
             fr: series.cover_fr || '',
             es: series.cover_es || '',
           },
+          coverSizes: {
+            en: series.coverSize_en || 'large',
+            fr: series.coverSize_fr || 'large',
+            es: series.coverSize_es || 'large',
+          },
           volumes,
           totalVols: volumes.length,
           stats,
@@ -175,6 +185,15 @@ export default async function handler(req, res) {
         socialLinks: config.socialLinks || {},
         footerTagline: config.footerTagline || {},
         headerTagline: config.headerTagline || {},
+        featuredBookKeys: (Array.isArray(config.featuredBookKeys)
+          ? config.featuredBookKeys
+          : ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'])
+          .filter(key => BOOKS[key] && !BOOKS[key].hidden)
+          .slice(0, 4),
+        footerBookKeys: (Array.isArray(config.footerBookKeys)
+          ? config.footerBookKeys
+          : ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'])
+          .filter(key => BOOKS[key] && !BOOKS[key].hidden),
         content: normalizeSiteContent(config.content),
       },
     });

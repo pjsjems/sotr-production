@@ -12,6 +12,8 @@ let SERIES = {};
 let BUNDLES = [];
 let PLATFORMS = {};
 let PUBLISHING_TAXONOMY = [];
+let FEATURED_BOOK_KEYS = ['mercer1', 'iran', 'anatomy2', 'chess'];
+let FOOTER_BOOK_KEYS = ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
 
 // Book/series/bundle text fields are admin-entered (dashboard forms with
 // no format validation) and get interpolated straight into innerHTML
@@ -33,12 +35,13 @@ function localizedTextMarkup(values) {
   ).join('');
 }
 
-function localizedImageMarkup(values, fallback, alt, className) {
+function localizedImageMarkup(values, fallback, alt, className, sizes = {}) {
   return ['en', 'fr', 'es'].map(language => {
     const image = values?.[language] || (language === 'en' ? fallback : '');
     const altText = typeof alt === 'object' ? (alt[language] || '') : alt;
+    const size = ['small', 'medium', 'large'].includes(sizes?.[language]) ? sizes[language] : 'large';
     return image
-      ? `<img class="${className} ${language}" src="${escapeHtml(image)}" alt="${escapeHtml(altText || '')}" loading="lazy">`
+      ? `<img class="${className} ${language} image-size-${size}" src="${escapeHtml(image)}" alt="${escapeHtml(altText || '')}" loading="lazy">`
       : '';
   }).join('');
 }
@@ -94,6 +97,12 @@ async function loadCatalog() {
     BUNDLES   = data.BUNDLES   || [];
     PLATFORMS = data.PLATFORMS || {};
     PUBLISHING_TAXONOMY = data.PUBLISHING_TAXONOMY || [];
+    FEATURED_BOOK_KEYS = Array.isArray(data.config?.featuredBookKeys)
+      ? data.config.featuredBookKeys.slice(0, 4)
+      : ['mercer1', 'iran', 'anatomy2', 'chess'];
+    FOOTER_BOOK_KEYS = Array.isArray(data.config?.footerBookKeys)
+      ? data.config.footerBookKeys
+      : ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
 
     // Site lock check
     if (data.siteLocked) {
@@ -169,11 +178,13 @@ function buildCover(b, size='normal'){
   const color = escapeHtml(b.color);
   const hasRelease = Object.values(releases).some(value => value && value !== 'TBD');
   const images = b.images || { en: b.image, fr: '', es: '' };
+  const imageSizes = b.imageSizes || { en:'large', fr:'large', es:'large' };
   const hasAnyImage = Object.values(images).some(Boolean);
   const imgHtml = hasAnyImage
-    ? localizedImageMarkup(images, b.image, titles, 'book-cover-image')
+    ? localizedImageMarkup(images, b.image, titles, 'book-cover-image', imageSizes)
         .replace(/src="([^"]+)"/g, (_, src) => `src="${src}${src.includes('?') ? '&' : '?'}v=${Date.now()}"`)
-        .replace(/class="book-cover-image ([a-z]+)"/g, 'class="book-cover-image $1" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"')
+        .replace(/class="(book-cover-image [a-z]+ image-size-(?:small|medium|large))"/g,
+          'class="$1" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"')
     : '';
   const coverFallback = ['en', 'fr', 'es'].map(language => images[language] ? '' : `
     <div class="${language}">
@@ -302,6 +313,69 @@ function renderPublishingCategoryBrowse(){
   const ageMax = browse.querySelector('#publishing-age-max-filter');
   const grid = browse.querySelector('#publishing-category-grid');
   const results = browse.querySelector('#publishing-category-results');
+  const selectedFilters = () => ({
+    category: parent.value,
+    subcategory: child.value,
+    genre: browse.querySelector('#publishing-genre-filter').value,
+    subject: browse.querySelector('#publishing-subject-filter').value,
+    audience: browse.querySelector('#publishing-audience-filter').value,
+    contentType: browse.querySelector('#publishing-content-type-filter').value,
+    language: browse.querySelector('#publishing-language-filter').value,
+    format: browse.querySelector('#publishing-format-filter').value,
+    minimumAge: ageMin.value === '' ? null : Number(ageMin.value),
+    maximumAge: ageMax.value === '' ? null : Number(ageMax.value),
+  });
+  const matchesFilters = (book, filters, excluded) =>
+    (excluded === 'category' || !filters.category || book.publishingCategory === filters.category) &&
+    (excluded === 'subcategory' || !filters.subcategory || book.publishingSubcategory === filters.subcategory) &&
+    (excluded === 'genre' || !filters.genre || book.genre === filters.genre || (book.genres || []).includes(filters.genre)) &&
+    (excluded === 'subject' || !filters.subject || (book.subjects || []).includes(filters.subject)) &&
+    (excluded === 'audience' || !filters.audience || book.targetAudience === filters.audience) &&
+    (excluded === 'contentType' || !filters.contentType || book.contentType === filters.contentType) &&
+    (excluded === 'language' || !filters.language || book.lang === filters.language || (book.editionLanguages || []).includes(filters.language)) &&
+    (excluded === 'format' || !filters.format || (book.formats || []).includes(filters.format)) &&
+    (filters.minimumAge === null || (book.ageRangeMin != null || book.ageRangeMax != null) &&
+      (book.ageRangeMax == null || Number(book.ageRangeMax) >= filters.minimumAge)) &&
+    (filters.maximumAge === null || (book.ageRangeMin != null || book.ageRangeMax != null) &&
+      (book.ageRangeMin == null || Number(book.ageRangeMin) <= filters.maximumAge));
+  const replaceOptions = (select, placeholder, options, disabled = false) => {
+    const previous = select.value;
+    select.innerHTML = option('', placeholder) + options.map(value => option(value, value)).join('');
+    select.disabled = disabled;
+    select.value = options.includes(previous) ? previous : '';
+  };
+  const syncFacetOptions = () => {
+    let filters = selectedFilters();
+    const allBooks = Object.values(BOOKS);
+    const booksFor = excluded => allBooks.filter(book => matchesFilters(book, filters, excluded));
+    const parentOptions = [...new Set(booksFor('category').map(book => book.publishingCategory).filter(Boolean))].sort();
+    replaceOptions(parent, 'All publishing categories', parentOptions);
+    if (parent.value !== filters.category) {
+      filters = selectedFilters();
+    }
+
+    const category = PUBLISHING_TAXONOMY.find(item => item.label === filters.category);
+    const childOptions = category
+      ? [...new Set(booksFor('subcategory')
+        .filter(book => book.publishingCategory === filters.category)
+        .map(book => book.publishingSubcategory).filter(Boolean))].sort()
+      : [];
+    replaceOptions(child, category ? 'All subcategories' : 'Select a category first', childOptions, !category);
+
+    const facetOptions = [
+      ['genre', 'All genres', book => [book.genre, ...(book.genres || [])]],
+      ['subject', 'All subjects', book => book.subjects || []],
+      ['audience', 'All audiences', book => [book.targetAudience]],
+      ['contentType', 'All content types', book => [book.contentType]],
+      ['language', 'All languages', book => [...(book.editionLanguages || []), book.lang]],
+      ['format', 'All formats', book => book.formats || []],
+    ];
+    facetOptions.forEach(([key, placeholder, valuesForBook]) => {
+      const select = browse.querySelector(`#publishing-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}-filter`);
+      const options = [...new Set(booksFor(key).flatMap(valuesForBook).filter(Boolean))].sort();
+      replaceOptions(select, placeholder, options);
+    });
+  };
   const renderResults = () => {
     const categoryLabel = parent.value;
     const childLabel = child.value;
@@ -309,35 +383,20 @@ function renderPublishingCategoryBrowse(){
     const minimumAge = ageMin.value === '' ? null : Number(ageMin.value);
     const maximumAge = ageMax.value === '' ? null : Number(ageMax.value);
     const hasFilter = !!(categoryLabel || genre || subject || audience || contentType || language || format || minimumAge !== null || maximumAge !== null);
-    const matches = Object.values(BOOKS).filter(book =>
-      (!categoryLabel || book.publishingCategory === categoryLabel) &&
-      (!childLabel || book.publishingSubcategory === childLabel) &&
-      (!genre || book.genre === genre || (book.genres || []).includes(genre)) &&
-      (!subject || (book.subjects || []).includes(subject)) &&
-      (!audience || book.targetAudience === audience) &&
-      (!contentType || book.contentType === contentType) &&
-      (!language || book.lang === language || (book.editionLanguages || []).includes(language)) &&
-      (!format || (book.formats || []).includes(format)) &&
-      (minimumAge === null || (book.ageRangeMin != null || book.ageRangeMax != null) &&
-        (book.ageRangeMax == null || Number(book.ageRangeMax) >= minimumAge)) &&
-      (maximumAge === null || (book.ageRangeMin != null || book.ageRangeMax != null) &&
-        (book.ageRangeMin == null || Number(book.ageRangeMin) <= maximumAge)),
-    );
+    const filters = selectedFilters();
+    const matches = Object.values(BOOKS).filter(book => matchesFilters(book, filters));
     results.textContent = hasFilter ? `${matches.length} title${matches.length === 1 ? '' : 's'}` : 'Choose a filter to browse the catalogue.';
     grid.innerHTML = hasFilter ? matches.map(book => buildBookCard(book)).join('') : '';
   };
   parent.addEventListener('change', () => {
-    const category = PUBLISHING_TAXONOMY.find(item => item.label === parent.value);
-    child.innerHTML = option('', category ? 'All subcategories' : 'Select a category first') +
-      (category?.subcategories || []).map(value => option(value, value)).join('');
-    child.disabled = !category;
     child.value = '';
+    syncFacetOptions();
     renderResults();
   });
-  child.addEventListener('change', renderResults);
-  controls.forEach(control => control.addEventListener('change', renderResults));
-  ageMin.addEventListener('input', renderResults);
-  ageMax.addEventListener('input', renderResults);
+  child.addEventListener('change', () => { syncFacetOptions(); renderResults(); });
+  controls.forEach(control => control.addEventListener('change', () => { syncFacetOptions(); renderResults(); }));
+  [ageMin, ageMax].forEach(input => input.addEventListener('input', () => { syncFacetOptions(); renderResults(); }));
+  syncFacetOptions();
 }
 
 function renderHomeSeriesGrid(){
@@ -346,10 +405,11 @@ function renderHomeSeriesGrid(){
     const names = seriesTextValues(s, 'name');
     const descriptions = seriesTextValues(s, 'desc');
     const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
+    const sizes = s.coverSizes || { en:'large', fr:'large', es:'large' };
     const hasCover = Object.values(covers).some(Boolean);
     return `
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0">
-      ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover') : ''}
+      ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover', sizes) : ''}
       <div class="soc-num">${s.num}</div>
       <div class="soc-tag">${escapeHtml(s.tag)}</div>
       <div class="soc-name">${localizedTextMarkup(names)}</div>
@@ -360,7 +420,7 @@ function renderHomeSeriesGrid(){
 
 function renderHeroMosaic(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
-  const keys = ['mercer1','iran','anatomy2','chess','atlas','neural'];
+  const keys = FEATURED_BOOK_KEYS;
   document.getElementById('hero-mosaic').innerHTML = keys.map(k=>{
     const b=BOOKS[k];
     if(!b) return null;
@@ -399,10 +459,11 @@ function renderSeriesListPage(){
     const names = seriesTextValues(s, 'name');
     const descriptions = seriesTextValues(s, 'desc');
     const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
+    const sizes = s.coverSizes || { en:'large', fr:'large', es:'large' };
     const hasCover = Object.values(covers).some(Boolean);
     return `
     <div class="series-overview-card" onclick="openSeries('${s.key}')" role="button" tabindex="0">
-      ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover') : ''}
+      ${hasCover ? localizedImageMarkup(covers, s.cover_en, names, 'soc-cover', sizes) : ''}
       <div class="soc-num">${escapeHtml(s.num)}</div>
       <div class="soc-tag">${escapeHtml(s.tag)}</div>
       <div class="soc-name">${localizedTextMarkup(names)}</div>
@@ -830,10 +891,11 @@ function openSeries2(key){
   document.getElementById('sdp-title').innerHTML=localizedTextMarkup(names);
   document.getElementById('sdp-desc').innerHTML=localizedTextMarkup(descriptions);
   const covers = s.covers || { en: s.cover_en, fr: '', es: '' };
+  const sizes = s.coverSizes || { en:'large', fr:'large', es:'large' };
   const hasCover = Object.values(covers).some(Boolean);
   const coverContainer = document.getElementById('sdp-cover');
   if (coverContainer) coverContainer.innerHTML = hasCover
-    ? localizedImageMarkup(covers, s.cover_en, names, 'sdp-cover-image')
+    ? localizedImageMarkup(covers, s.cover_en, names, 'sdp-cover-image', sizes)
     : '';
   document.getElementById('sdp-stats').innerHTML=s.stats.map(st=>`<div><div class="sdp-stat-n">${st.n}</div><div class="sdp-stat-l en">${st.l.en}</div><div class="sdp-stat-l fr">${st.l.fr}</div><div class="sdp-stat-l es">${st.l.es}</div></div>`).join('');
   document.getElementById('sdp-concept-head').innerHTML=localizedTextMarkup(seriesTextValues(s, 'conceptHead'));
@@ -929,8 +991,13 @@ function closePodBg(e){ if(e.target===document.getElementById('podcast-modal-ove
 
 function renderFooterLinks(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
-  const keys=['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
-  document.getElementById('footer-catalog-links').innerHTML = keys.filter(k=>BOOKS[k]).map(k=>`<li><a onclick="openBook('${k}')">${BOOKS[k].title.replace(/ - Book \d/,'').replace(/ Vol\. \d/,'')}</a></li>`).join('');
+  document.getElementById('footer-catalog-links').innerHTML = FOOTER_BOOK_KEYS.filter(key=>BOOKS[key]&&!BOOKS[key].hidden).map(key=>{
+    const titles = bookTitleValues(BOOKS[key]);
+    Object.keys(titles).forEach(language => {
+      titles[language] = titles[language].replace(/ - Book \d/,'').replace(/ Vol\. \d/,'');
+    });
+    return `<li><a onclick="openBook('${key}')">${localizedTextMarkup(titles)}</a></li>`;
+  }).join('');
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

@@ -68,6 +68,22 @@ A non-writing dry run against the current local `data/catalog.json` preserved al
 
 Create collection records and author/contributor profiles in **Publishing**. Select them in the book's publishing record and assign contributor roles. Records are linked once; using one book in several collections/series does not duplicate the master book.
 
+### Choose homepage banner books
+
+In **Catalog**, use the **Homepage banner** checkbox on each book row to control whether it appears in the homepage hero mosaic. The banner has four ordered spots. Selecting a fifth book automatically replaces the current fourth selection; unchecking a book frees its spot. Hidden books cannot be selected. The selection is saved to site configuration and used by the public catalogue API without requiring a redeployment.
+
+### Browse the public catalogue by facets
+
+On the homepage, **Browse by Category** acts as a faceted search. Each selected category, subcategory, genre, subject, audience, content type, edition language, format or age range narrows the available options in the other selectors to values associated with matching books. Clearing a selection expands the related options again.
+
+### Manage book and series images
+
+In a book or series editor, open the relevant language tab to upload an image and set its display size (small, medium or large) for that language. The **Use this image for** checkboxes let one uploaded file serve one, two or all three languages. Deleting an image removes it from the selected language; a shared image remains stored while another language still references it. A book's English image can also be managed from its synopsis editor.
+
+### Choose footer catalogue books
+
+In **Catalog**, use the **Footer** checkbox on each book row to control its presence in the website footer's catalogue links. Hidden books are omitted from the public footer and cannot be selected. Footer links display the title in the visitor's selected language.
+
 ### Create and manage series
 
 The **Series** form supports English, French and Spanish sub-tabs for the series name, short description, concept heading/body and cover image. Create a series with books staged in the same form, or create a title directly from an existing series editor. Each book-language sub-tab supports a localized title, subtitle, cover, synopsis, genre display label, price/release display and volume label. The public site does not substitute English text when a French or Spanish value is missing; complete each language's fields in the admin forms to make that content appear in every language. Book language availability is selected separately and includes each individual language, every language pair and the three-language combination. Series and book visibility can be toggled independently; hiding a series removes it and its books from public catalogue responses, while hiding an individual book removes that title from public pages without deleting its record.
