@@ -268,11 +268,10 @@ function BundleAdmin({ toast, books = [] }) {
       )}
 
       {editBundle && (
-        <div className="modal-ov open" onClick={e=>e.target.className==='modal-ov'&&setEditBundle(null)}>
+        <div className="modal-ov open">
           <div className="modal-box" style={{maxWidth:680}}>
             <div className="modal-head">
               <span className="modal-title">{isNew ? '+ New Bundle' : `Edit: ${editBundle.title||'Bundle'}`}</span>
-              <button className="modal-cls" onClick={()=>setEditBundle(null)}>✕</button>
             </div>
             <div className="modal-body">
               <div className="two-col">
@@ -1009,11 +1008,10 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
       )}
 
       {editSeries && (
-        <div className="modal-ov open" onClick={e => e.target.className.includes('modal-ov') && setEditSeries(null)}>
+        <div className="modal-ov open">
           <div className="modal-box">
             <div className="modal-head">
               <span className="modal-title">Edit Series: {editSeries.name}</span>
-              <button className="modal-cls" onClick={() => setEditSeries(null)}>✕</button>
             </div>
             <div className="modal-body">
               <div className="field-row">
@@ -1091,7 +1089,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                 <div className="panel-head" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <span className="panel-title">Create a new title in this series</span>
                   <button className="btn btn-s btn-sm" onClick={() => setShowEditSeriesBook(value => !value)}>
-                    {showEditSeriesBook ? 'Close' : '+ New Title'}
+                    {showEditSeriesBook ? 'Keep Draft' : '+ New Title'}
                   </button>
                 </div>
                 {showEditSeriesBook && (
@@ -1147,7 +1145,6 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
           <div className="modal-box">
             <div className="modal-head">
               <span className="modal-title">+ Add New Series</span>
-              <button className="modal-cls" onClick={closeNewSeries}>✕</button>
             </div>
             <div className="modal-body">
               <div className="field-row">
@@ -1224,7 +1221,7 @@ function SeriesAdmin({ data, toast, loadCatalog, content = DEFAULT_SITE_CONTENT 
                 </div>
                 <div className="panel-head" style={{cursor:'pointer', borderTop:'1px solid var(--border)'}} onClick={() => setShowEmbeddedAddBook(v => !v)}>
                   <span className="panel-title">+ Stage a Brand New Book</span>
-                  <span style={{fontSize:12,color:'var(--tx3)'}}>{showEmbeddedAddBook ? '▲ Hide' : '▼ Show'}</span>
+                  <span style={{fontSize:12,color:'var(--tx3)'}}>{showEmbeddedAddBook ? 'Keep Draft' : '▼ Show'}</span>
                 </div>
                 {showEmbeddedAddBook && (
                   <div className="panel-body" style={{display:'flex',flexDirection:'column',gap:0}}>
@@ -2870,11 +2867,10 @@ export default function AdminDashboard() {
 
       {/* EDIT BOOK MODAL */}
       {editBook && (
-        <div className="modal-ov open" onClick={e => e.target.className.includes('modal-ov') && setEditBook(null)}>
+        <div className="modal-ov open">
           <div className="modal-box">
             <div className="modal-head">
               <span className="modal-title">Edit: {editBook.title}</span>
-              <button className="modal-cls" onClick={() => setEditBook(null)}>✕</button>
             </div>
             <div className="modal-body">
               <div className="two-col">
@@ -2938,11 +2934,10 @@ export default function AdminDashboard() {
 
       {/* SYNOPSIS MODAL */}
       {synopsisBook && (
-        <div className="modal-ov open" onClick={e => e.target.className.includes('modal-ov') && setSynopsisBook(null)}>
+        <div className="modal-ov open">
           <div className="modal-box" style={{ maxWidth:720 }}>
             <div className="modal-head">
               <span className="modal-title">Synopses: {synopsisBook.title}</span>
-              <button className="modal-cls" onClick={() => setSynopsisBook(null)}>✕</button>
             </div>
             <div className="modal-body">
               {/* Cover Image Upload */}
@@ -3054,11 +3049,10 @@ export default function AdminDashboard() {
 
       {/* ADD TITLE MODAL */}
       {showAddTitle && (
-        <div className="modal-ov open" onClick={e => { if(e.target.className==='modal-ov open') setShowAddTitle(false); }}>
+        <div className="modal-ov open">
           <div className="modal-box" style={{maxWidth:640}}>
             <div className="modal-head">
               <span className="modal-title">+ Add New Title to Catalog</span>
-              <button className="modal-cls" onClick={() => setShowAddTitle(false)}>✕</button>
             </div>
             <div className="modal-body">
               <div style={{background:'var(--crp)',border:'1px solid rgba(200,112,112,.25)',borderRadius:6,padding:'.65rem 1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem'}}>
