@@ -442,7 +442,8 @@ const SITE_HTML = `<!-- TOPBAR -->
       <div class="synopsis-details" id="modal-details"></div>
     </div>
     <div id="tab-buy" class="modal-tab-panel">
-      <div class="format-tabs"><button class="ft-btn active" onclick="setFmt('print',this)"><span class="en">Print</span><span class="fr">Imprimé</span><span class="es">Impreso</span></button><button class="ft-btn" onclick="setFmt('ebook',this)"><span class="en">eBook</span><span class="fr">Numérique</span><span class="es">eBook</span></button><button class="ft-btn" onclick="setFmt('audio',this)"><span class="en">Audiobook</span><span class="fr">Audio</span><span class="es">Audiolibro</span></button></div>
+      <div class="language-tabs" id="buy-language-tabs" aria-label="Choose language"></div>
+      <div class="format-tabs" id="buy-format-tabs" aria-label="Choose book type"></div>
       <p class="platform-list-label en">Choose Your Retailer</p><p class="platform-list-label fr">Choisissez Votre Libraire</p><p class="platform-list-label es">Elige Tu Tienda</p>
       <div class="platform-list" id="platform-list"></div>
       <div class="signed-block"><p class="en">Looking for a signed copy?</p><p class="fr">Cherchez un exemplaire dédicacé ?</p><p class="es">¿Busca un ejemplar firmado?</p><a class="btn btn-ghost" href="mailto:contact@spyontherise.com?subject=Signed%20Copy%20Request" style="font-size:12px;padding:9px 18px;"><span class="en">Request Signed Copy</span><span class="fr">Demander un Exemplaire Dédicacé</span><span class="es">Solicitar Ejemplar Firmado</span></a></div>

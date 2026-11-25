@@ -103,6 +103,8 @@ export default async function handler(req, res) {
           es: book.synopsis_es || '',
         },
         links: publicBook.links,
+        retailLinks: book.retailLinks || null,
+        prices: book.prices || {},
         details: publicBook.details,
         publishingCategory: categories.find(item => item.id === publishingCategoryId)?.label || '',
         publishingSubcategory: subcategories.find(item => item.id === publishingSubcategoryId)?.label || '',

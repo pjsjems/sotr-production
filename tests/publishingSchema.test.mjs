@@ -131,6 +131,7 @@ test('migration preserves books and legacy values, creates relational data, and 
   assert.equal(first.catalog.BOOKS.spy1.isbn13, undefined);
   assert.equal(first.catalog.EDITIONS['legacy-spy1-ebook-unspecified'].asin, undefined);
   assert.equal(first.report.flaggedBooks.some(item => item.key === 'standalone' && item.value === 'Science Fiction'), true);
+  assert.equal(first.catalog.BOOKS.spy1.retailLinks.ebook.en.amazon, 'https://example.com/book');
 
   const serialized = JSON.stringify(first.catalog);
   const second = migratePublishingCatalog(first.catalog);

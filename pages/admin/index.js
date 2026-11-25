@@ -1823,9 +1823,11 @@ export default function AdminDashboard() {
   const [editForm, setEditForm] = useState({});
   const [editTitleLangTab, setEditTitleLangTab] = useState('en');
   const [synopsisBook, setSynopsisBook] = useState(null);
-  const [synopsisForm, setSynopsisForm] = useState({ en:'', fr:'', es:'', links:{} });
+  const [synopsisForm, setSynopsisForm] = useState({ en:'', fr:'', es:'', links:{}, prices:{} });
   const [toasts, setToasts] = useState([]);
   const [activeTab, setActiveTab] = useState('en');
+  const [retailLangTab, setRetailLangTab] = useState('en');
+  const [retailFormatTab, setRetailFormatTab] = useState('paperback');
   const [saving, setSaving] = useState(false);
   const [pwForm, setPwForm] = useState({ current:'', next:'', confirm:'' });
   const [pwMsg, setPwMsg] = useState(null);
@@ -2058,7 +2060,7 @@ export default function AdminDashboard() {
       const r = await fetch('/api/admin/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'synopsis', key: synopsisBook.key, synopsis: { en:synopsisForm.en, fr:synopsisForm.fr, es:synopsisForm.es }, links: synopsisForm.links }),
+        body: JSON.stringify({ action: 'synopsis', key: synopsisBook.key, synopsis: { en:synopsisForm.en, fr:synopsisForm.fr, es:synopsisForm.es }, links: synopsisForm.links, prices: synopsisForm.prices }),
       });
       const d = await r.json();
       if (d.success) {
@@ -2632,7 +2634,7 @@ export default function AdminDashboard() {
                         ✏️
                       </button>
                       <button className="btn btn-s btn-sm btn-icon" title="Edit synopses"
-                        onClick={() => { setSynopsisBook(b); setSynopsisForm({ en:b.synopsis_en||b.synopsis||'', fr:b.synopsis_fr||'', es:b.synopsis_es||'', links:b.links||{} }); setActiveTab('en'); }}>
+                        onClick={() => { setSynopsisBook(b); setSynopsisForm({ en:b.synopsis_en||b.synopsis||'', fr:b.synopsis_fr||'', es:b.synopsis_es||'', links:b.retailLinks||b.links||{}, prices:b.prices||{} }); setActiveTab('en'); setRetailLangTab('en'); setRetailFormatTab('paperback'); }}>
                         📝
                       </button>
                       <button className="btn btn-s btn-sm btn-icon"
@@ -3184,45 +3186,110 @@ export default function AdminDashboard() {
               ) : (
                 <div style={{ marginTop:'1rem' }}>
                   <div style={{ padding:'.6rem .75rem', background:'var(--surface2)', borderRadius:'var(--r2)', fontSize:12, color:'var(--tx3)', lineHeight:1.6, marginBottom:'1rem' }}>
-                    Enter this book's purchase link for each platform. Removing a platform here removes it everywhere, since platforms are shared across the whole catalog.
+                    Set purchase URLs and prices separately by language and book type. Platform changes remain shared across the catalog.
                   </div>
-                  {['print','ebook','audio'].map(type => (
-                    <div key={type} style={{ marginBottom:'1.5rem' }}>
-                      <div style={{ fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--tx3)', marginBottom:'.5rem' }}>
-                        {type === 'print' ? 'Print' : type === 'ebook' ? 'eBook' : 'Audiobook'}
+                  <div className="tabs" style={{ marginBottom:'.75rem' }}>
+                    {[['en','🇬🇧 ENGLISH'],['fr','🇫🇷 FRENCH'],['es','🇪🇸 SPANISH']].map(([lang,label]) =>
+                      <button key={lang} type="button" className={`tab-btn ${retailLangTab===lang?'active':''}`} onClick={() => setRetailLangTab(lang)}>{label}</button>
+                    )}
+                  </div>
+                  <div className="tabs" style={{ marginBottom:'1rem' }}>
+                    {[['paperback','Paperback'],['ebook','eBook'],['hardcover','Hardcover'],['audiobook','Audiobook']].map(([format,label]) =>
+                      <button key={format} type="button" className={`tab-btn ${retailFormatTab===format?'active':''}`} onClick={() => setRetailFormatTab(format)}>{label}</button>
+                    )}
+                  </div>
+                  {(() => {
+                    const platformType = retailFormatTab === 'ebook' ? 'ebook'
+                      : retailFormatTab === 'audiobook' ? 'audio' : 'print';
+                    const legacyFormat = retailFormatTab === 'ebook' ? 'ebook'
+                      : retailFormatTab === 'audiobook' ? 'audio' : 'print';
+                    return (
+                      <div>
+                        {(data?.platforms?.[platformType] || []).map(p => {
+                          const rawUrl = synopsisForm.links?.[retailFormatTab]?.[retailLangTab]?.[p.key]
+                            || synopsisForm.links?.[retailLangTab]?.[retailFormatTab]?.[p.key]
+                            || synopsisForm.links?.[legacyFormat]?.[retailLangTab]?.[p.key]
+                            || synopsisForm.links?.[legacyFormat]?.[p.key]
+                            || '';
+                          const price = synopsisForm.prices?.[retailFormatTab]?.[retailLangTab]?.[p.key]
+                            || synopsisForm.prices?.[retailLangTab]?.[retailFormatTab]?.[p.key]
+                            || synopsisForm.prices?.[legacyFormat]?.[retailLangTab]?.[p.key]
+                            || synopsisForm.prices?.[legacyFormat]?.[p.key]
+                            || '';
+                          const trimmedUrl = String(rawUrl || '').trim();
+                          const normalizedUrl = /^www\./i.test(trimmedUrl) ? `https://${trimmedUrl}` : trimmedUrl;
+                          let validUrl = false;
+                          if (/^https?:\/\//i.test(normalizedUrl)) {
+                            try {
+                              const parsed = new URL(normalizedUrl);
+                              validUrl = (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+                                && !!parsed.hostname && parsed.hostname.includes('.');
+                            } catch {}
+                          }
+                          return (
+                            <div key={p.key} style={{ display:'grid', gridTemplateColumns:'minmax(180px,1fr) 150px auto', alignItems:'end', gap:8, marginBottom:'1rem' }}>
+                              <div className="field-row" style={{ marginBottom:0 }}>
+                                <label className="field-label">{p.name} — Purchase URL</label>
+                                <input className="field-input" type="url"
+                                  value={rawUrl}
+                                  onChange={e => setSynopsisForm(f => ({
+                                    ...f,
+                                    links: {
+                                      ...f.links,
+                                      [retailFormatTab]: {
+                                        ...(f.links?.[retailFormatTab] || {}),
+                                        [retailLangTab]: {
+                                          ...(f.links?.[retailFormatTab]?.[retailLangTab] || {}),
+                                          [p.key]: e.target.value,
+                                        },
+                                      },
+                                    },
+                                  }))}
+                                  placeholder="https://www.amazon.com/dp/..." />
+                                {trimmedUrl && !validUrl && <div style={{ color:'var(--crb)', fontSize:11, marginTop:4 }}>Enter a valid http:// or https:// URL.</div>}
+                              </div>
+                              <div className="field-row" style={{ marginBottom:0 }}>
+                                <label className="field-label">Price</label>
+                                <input className="field-input"
+                                  value={price}
+                                  onChange={e => setSynopsisForm(f => ({
+                                    ...f,
+                                    prices: {
+                                      ...f.prices,
+                                      [retailFormatTab]: {
+                                        ...(f.prices?.[retailFormatTab] || {}),
+                                        [retailLangTab]: {
+                                          ...(f.prices?.[retailFormatTab]?.[retailLangTab] || {}),
+                                          [p.key]: e.target.value,
+                                        },
+                                      },
+                                    },
+                                  }))}
+                                  placeholder="$19.95" />
+                              </div>
+                              <button type="button" className="btn btn-danger btn-sm" title={`Remove ${p.name} from all platforms`}
+                                onClick={async () => {
+                                  if (!confirm(`Remove "${p.name}" from all platforms? This affects every book.`)) return;
+                                  try {
+                                    const r = await fetch('/api/admin/book', {
+                                      method:'POST', headers:{'Content-Type':'application/json'},
+                                      body: JSON.stringify({ action:'delete-platform', platformType, platform:{ key:p.key } }),
+                                    });
+                                    const d = await r.json();
+                                    if (d.success) { toast('Platform removed', 'success'); await loadCatalog(); }
+                                    else toast(d.error, 'error');
+                                  } catch { toast('Failed to remove platform', 'error'); }
+                                }}>✕</button>
+                            </div>
+                          );
+                        })}
+                        {(data?.platforms?.[platformType] || []).length === 0 && (
+                          <div style={{ fontSize:12, color:'var(--tx3)', marginBottom:'1rem' }}>No platforms yet for this book type.</div>
+                        )}
+                        <AddPlatformInline type={platformType} toast={toast} loadCatalog={loadCatalog} />
                       </div>
-                      {(data?.platforms?.[type] || []).length === 0 && (
-                        <div style={{ fontSize:12, color:'var(--tx3)', marginBottom:'.5rem' }}>No platforms yet for this format.</div>
-                      )}
-                      {(data?.platforms?.[type] || []).map(p => (
-                        <div key={p.key} style={{ display:'flex', alignItems:'flex-end', gap:8, marginBottom:'.6rem' }}>
-                          <div className="field-row" style={{ flex:1, marginBottom:0 }}>
-                            <label className="field-label">{p.name}</label>
-                            <input className="field-input" type="url"
-                              value={(synopsisForm.links?.[type] || {})[p.key] || ''}
-                              onChange={e => setSynopsisForm(f => ({
-                                ...f, links: { ...f.links, [type]: { ...(f.links?.[type]||{}), [p.key]: e.target.value } },
-                              }))}
-                              placeholder="https://" />
-                          </div>
-                          <button className="btn btn-danger btn-sm" title={`Remove ${p.name} from all platforms`}
-                            onClick={async () => {
-                              if (!confirm(`Remove "${p.name}" from all platforms? This affects every book.`)) return;
-                              try {
-                                const r = await fetch('/api/admin/book', {
-                                  method:'POST', headers:{'Content-Type':'application/json'},
-                                  body: JSON.stringify({ action:'delete-platform', platformType:type, platform:{ key:p.key } }),
-                                });
-                                const d = await r.json();
-                                if (d.success) { toast('Platform removed', 'success'); await loadCatalog(); }
-                                else toast(d.error, 'error');
-                              } catch { toast('Failed to remove platform', 'error'); }
-                            }}>✕</button>
-                        </div>
-                      ))}
-                      <AddPlatformInline type={type} toast={toast} loadCatalog={loadCatalog} />
-                    </div>
-                  ))}
+                    );
+                  })()}
                 </div>
               )}
             </div>

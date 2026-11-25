@@ -688,6 +688,18 @@ footer { background: var(--bg-dark); padding: 4.5rem 0 2rem; }
 .btn-buy:hover { background: var(--crimson); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(122,21,21,0.3); }
 .platform-row.feat .btn-buy { background: var(--crimson); }
 .platform-row.feat .btn-buy:hover { background: var(--crimson-dark); }
+
+.language-tabs { display:flex; gap:6px; margin-bottom:8px; }
+.retail-lang-btn { border:1px solid var(--border); background:var(--bg-surface); color:var(--text-muted); border-radius:999px; padding:7px 12px; font-family:var(--ui); font-size:11px; font-weight:800; cursor:pointer; transition:all .15s ease-out; }
+.retail-lang-btn.active { border-color:var(--crimson); background:var(--crimson-pale); color:var(--crimson); }
+.retail-lang-btn:focus-visible, .ft-btn:focus-visible, .platform-row:focus-visible { outline:3px solid rgba(179,38,57,.35); outline-offset:2px; }
+.platform-row { text-decoration:none; color:inherit; cursor:pointer; transition:border-color .15s ease-out, box-shadow .15s ease-out, transform .12s ease-out, background .15s ease-out; }
+.platform-row:hover { box-shadow:0 8px 20px rgba(30,20,20,.10); transform:translateY(-1px); }
+.platform-row:active { transform:scale(.99); box-shadow:0 3px 8px rgba(30,20,20,.08); }
+@media (prefers-reduced-motion:reduce) {
+  .retail-lang-btn, .ft-btn, .platform-row { transition:none; }
+  .platform-row:hover, .platform-row:active { transform:none; }
+}
 .signed-block { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center; }
 .signed-block p { font-family: var(--body); font-size: 14px; font-style: italic; color: var(--text-muted); margin-bottom: 0.75rem; }
 

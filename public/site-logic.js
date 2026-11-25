@@ -14,6 +14,7 @@ let PLATFORMS = {};
 let PUBLISHING_TAXONOMY = [];
 let FEATURED_BOOK_KEYS = ['mercer1', 'iran', 'anatomy2', 'chess'];
 let FOOTER_BOOK_KEYS = ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
+let _curBook = null;
 
 // Book/series/bundle text fields are admin-entered (dashboard forms with
 // no format validation) and get interpolated straight into innerHTML
@@ -476,9 +477,87 @@ function renderSeriesListPage(){
    BOOK MODAL - points (b)(e)
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 let currentFmt = 'print';
+let currentRetailLang = 'en';
+
+function normalizeRetailUrl(value) {
+  let url = String(value || '').trim();
+  if (/^www\./i.test(url)) url = 'https://' + url;
+  return url;
+}
+
+function isValidRetailUrl(value) {
+  const url = normalizeRetailUrl(value);
+  if (!/^https?:\/\//i.test(url) || /^https?:\/\/$/i.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && !!parsed.hostname
+      && parsed.hostname !== 'localhost'
+      && parsed.hostname.includes('.');
+  } catch {
+    return false;
+  }
+}
+
+function retailLookup(container, format, lang, key) {
+  if (!container || typeof container !== 'object') return '';
+  return container[format]?.[lang]?.[key]
+    || container[lang]?.[format]?.[key]
+    || container[format]?.[key]
+    || container[lang]?.[key]
+    || '';
+}
+
+function getRetailUrl(book, format, lang, key) {
+  const aliases = format === 'paperback' || format === 'hardcover'
+    ? [format, 'print']
+    : format === 'audiobook'
+      ? [format, 'audio']
+      : [format, 'ebook'];
+  for (const alias of aliases) {
+    const url = retailLookup(book?.retailLinks, alias, lang, key)
+      || retailLookup(book?.links, alias, lang, key);
+    if (isValidRetailUrl(url)) return normalizeRetailUrl(url);
+  }
+  return '';
+}
+
+function getRetailPrice(book, format, lang, key) {
+  const aliases = format === 'paperback' || format === 'hardcover'
+    ? [format, 'print']
+    : format === 'audiobook'
+      ? [format, 'audio']
+      : [format, 'ebook'];
+  for (const alias of aliases) {
+    const price = retailLookup(book?.prices, alias, lang, key);
+    if (String(price || '').trim()) return String(price).trim();
+  }
+  return '';
+}
+
+function formatRetailFormats(book, lang) {
+  const formats = [
+    ['paperback', 'Paperback'],
+    ['ebook', 'eBook'],
+    ['hardcover', 'Hardcover'],
+    ['audiobook', 'Audiobook'],
+  ];
+  return formats.filter(([format]) =>
+    (PLATFORMS[format === 'paperback' || format === 'hardcover' ? 'print'
+      : format === 'audiobook' ? 'audio' : 'ebook'] || [])
+      .some(p => isValidRetailUrl(getRetailUrl(book, format, lang, p.key))),
+  );
+}
+
+function availableRetailLanguages(book) {
+  return ['en', 'fr', 'es'].filter(lang =>
+    formatRetailFormats(book, lang).length > 0,
+  );
+}
 function openBook(key){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
   const b = BOOKS[key];
+  _curBook = b;
   const titles = bookTitleValues(b);
   const subtitles = bookTextValues(b, 'subtitles', b.subtitle || '');
   const genreLabels = bookTextValues(b, 'genreLabels', b.genre || '');
@@ -541,9 +620,13 @@ function openBook(key){
   if(!b.available){
     document.getElementById('platform-list').innerHTML = `<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:0.5rem 0;" class="en">Not yet available for purchase. Subscribe to our newsletter to be notified.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:0.5rem 0;" class="fr">Pas encore disponible. Abonnez-vous à notre newsletter pour être notifié.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);padding:0.5rem 0;" class="es">Aún no disponible. Suscríbete a nuestra newsletter para recibir notificaciones.</p>`;
   } else {
-    currentFmt = 'print';
-    document.querySelectorAll('.ft-btn').forEach((btn,i)=>btn.classList.toggle('active',i===0));
-    renderPlatforms('print');
+    const activeBodyLang = document.body.getAttribute('data-lang') || 'en';
+    const languages = availableRetailLanguages(b);
+    currentRetailLang = languages.includes(activeBodyLang) ? activeBodyLang : (languages[0] || 'en');
+    const formats = formatRetailFormats(b, currentRetailLang);
+    currentFmt = formats[0]?.[0] || 'paperback';
+    renderRetailControls(b);
+    renderPlatforms(currentFmt);
   }
   // Related titles - point (e): same series layer + same genre layer
   renderRelated(b);
@@ -676,19 +759,74 @@ function setFmt(fmt, btn){
   renderPlatforms(fmt);
 }
 
+function setRetailLang(lang, btn) {
+  currentRetailLang = lang;
+  document.querySelectorAll('.retail-lang-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const formats = formatRetailFormats(_curBook, lang);
+  currentFmt = formats[0]?.[0] || 'paperback';
+  renderRetailControls(_curBook);
+  renderPlatforms(currentFmt);
+}
+
+function renderRetailControls(book) {
+  const languageNames = { en:'EN', fr:'FR', es:'ES' };
+  const languages = availableRetailLanguages(book);
+  const langContainer = document.getElementById('buy-language-tabs');
+  if (langContainer) {
+    langContainer.innerHTML = languages.length
+      ? languages.map(lang =>
+        `<button type="button" class="retail-lang-btn${lang === currentRetailLang ? ' active' : ''}" onclick="setRetailLang('${lang}',this)">${languageNames[lang]}</button>`
+      ).join('')
+      : '';
+  }
+
+  const formatContainer = document.getElementById('buy-format-tabs');
+  if (formatContainer) {
+    const formats = formatRetailFormats(book, currentRetailLang);
+    formatContainer.innerHTML = formats.length
+      ? formats.map(([format, label]) =>
+        `<button type="button" class="ft-btn${format === currentFmt ? ' active' : ''}" onclick="setFmt('${format}',this)">
+          <span class="en">${format === 'ebook' ? 'eBook' : label}</span>
+          <span class="fr">${format === 'paperback' ? 'Broché' : format === 'ebook' ? 'Numérique' : format === 'hardcover' ? 'Relié' : 'Livre audio'}</span>
+          <span class="es">${format === 'paperback' ? 'Tapa blanda' : format === 'ebook' ? 'eBook' : format === 'hardcover' ? 'Tapa dura' : 'Audiolibro'}</span>
+        </button>`
+      ).join('')
+      : '';
+  }
+}
+
 function renderPlatforms(fmt){
-  const ps=PLATFORMS[fmt]||[];
-  if(!ps.length){ document.getElementById('platform-list').innerHTML='<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="en">Coming soon for this format.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="fr">Disponible prochainement.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="es">Próximamente.</p>'; return; }
-  document.getElementById('platform-list').innerHTML=ps.map(p=>`
-    <div class="platform-row ${p.feat?'feat':''}">
-      <div style="display:flex;align-items:center;gap:10px;">
+  const language = currentRetailLang || 'en';
+  const platformType = fmt === 'paperback' || fmt === 'hardcover' ? 'print'
+    : fmt === 'audiobook' ? 'audio' : 'ebook';
+  const ps = (PLATFORMS[platformType] || []).filter(p =>
+    isValidRetailUrl(getRetailUrl(_curBook, fmt, language, p.key))
+  );
+  if (!availableRetailLanguages(_curBook).length) {
+    document.getElementById('platform-list').innerHTML='<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="en">Coming soon.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="fr">Disponible prochainement.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="es">Próximamente.</p>';
+    return;
+  }
+  if (!ps.length) {
+    document.getElementById('platform-list').innerHTML='<p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="en">Coming soon for this format.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="fr">Disponible prochainement.</p><p style="font-family:var(--body);font-style:italic;color:var(--text-muted);" class="es">Próximamente.</p>';
+    return;
+  }
+  document.getElementById('platform-list').innerHTML=ps.map(p=>{
+    const url = getRetailUrl(_curBook, fmt, language, p.key);
+    const price = getRetailPrice(_curBook, fmt, language, p.key);
+    const label = price
+      ? `BUY · ${escapeHtml(price)} →`
+      : 'BUY →';
+    const formatName = fmt === 'paperback' ? 'Paperback' : fmt === 'hardcover' ? 'Hardcover' : fmt === 'ebook' ? 'eBook' : 'Audiobook';
+    const langCode = language.toUpperCase();
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="platform-row ${p.feat?'feat':''}" aria-label="Buy ${formatName} on ${escapeHtml(p.name)}${price ? ' for '+escapeHtml(price) : ''}">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
         <div class="pr-icon" style="background:${p.color};">${p.abbr}</div>
-        <div><div class="pr-name">${p.name}${p.feat?'<span class="badge-rec">Recommended</span>':''}</div><div class="pr-note">${p.note}</div></div>
+        <div><div class="pr-name">${p.name}${p.feat?'<span class="badge-rec en">Recommended</span><span class="badge-rec fr">Recommandé</span><span class="badge-rec es">Recomendado</span>':''}</div><div class="pr-note">${p.note} · ${langCode}</div></div>
       </div>
-      <a href="${p.url}" class="btn-buy" target="_blank" rel="noopener">
-        <span class="en">Buy</span><span class="fr">Acheter</span><span class="es">Comprar</span>
-      </a>
-    </div>`).join('');
+      <span class="btn-buy" aria-hidden="true">${label}</span>
+    </a>`;
+  }).join('');
 }
 
 function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); document.body.style.overflow=''; }
@@ -759,7 +897,7 @@ function openBundle(id) {
       <div class="bc-countdown" id="bundle-modal-timer" style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--gold);margin-top:4px;">00:00:00</div>
     </div>` : '';
 
-  const featPrint = (PLATFORMS.print || []).filter(p => p.feat);
+  const featPrint = (PLATFORMS.print || []).filter(p => p.feat && isValidRetailUrl(p.url));
   const retailersHtml = featPrint.length ? `
     <div style="margin-top:1rem;">
       <div style="font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.75rem;">
@@ -767,7 +905,7 @@ function openBundle(id) {
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${featPrint.map(p=>`
-          <a href="${p.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--crimson-mid);border-radius:var(--r);background:var(--crimson-pale);text-decoration:none;transition:border-color .15s;">
+          <a href="${escapeHtml(normalizeRetailUrl(p.url))}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--crimson-mid);border-radius:var(--r);background:var(--crimson-pale);text-decoration:none;transition:border-color .15s;">
             <div style="display:flex;align-items:center;gap:10px;">
               <div style="width:30px;height:30px;border-radius:3px;background:${p.color};display:flex;align-items:center;justify-content:center;font-family:var(--ui);font-size:9px;font-weight:700;color:#fff;">${p.abbr}</div>
               <div>

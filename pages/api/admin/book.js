@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Unauthorized, please log in again' });
   if (req.method !== 'POST') return res.status(405).end();
   const {
-    action, key, updates, synopsis, links, platform, platformType,
+    action, key, updates, synopsis, links, prices, platform, platformType,
     series, seriesKey, bookKey,
   } = req.body || {};
   if (!NO_KEY_ACTIONS.includes(action) && !key) return res.status(400).json({ error: 'Book key required' });
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     if (action === 'toggle')        result = await toggleAvailability(key);
     else if (action === 'hide')     result = await toggleHidden(key);
     else if (action === 'update')   result = await updateBook(key, updates || {});
-    else if (action === 'synopsis') result = await updateSynopsis(key, synopsis || {}, links);
+    else if (action === 'synopsis') result = await updateSynopsis(key, synopsis || {}, links, prices);
     else if (action === 'add-platform') {
       if (!platform || !platformType) return res.status(400).json({ error: 'platform and platformType required' });
       result = await addPlatform(platform, platformType);
