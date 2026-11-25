@@ -1797,7 +1797,8 @@ export default function AdminDashboard() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [data, setData] = useState(null);
-  const [featuredBookKeys, setFeaturedBookKeys] = useState(['mercer1', 'iran', 'anatomy2', 'chess']);
+  const [featuredBookKeys, setFeaturedBookKeys] = useState(['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural']);
+  const [featuredBookCount, setFeaturedBookCount] = useState(6);
   const [footerBookKeys, setFooterBookKeys] = useState([]);
   const [featuredBooksSaving, setFeaturedBooksSaving] = useState(false);
   const [footerBooksSaving, setFooterBooksSaving] = useState(false);
@@ -1872,7 +1873,8 @@ export default function AdminDashboard() {
       if (!r.ok) { setAuth(false); return; }
       const d = await r.json();
       setData(d);
-      if (Array.isArray(d.featuredBookKeys)) setFeaturedBookKeys(d.featuredBookKeys.slice(0, 4));
+      if (Array.isArray(d.featuredBookKeys)) setFeaturedBookKeys(d.featuredBookKeys.slice(0, 12));
+      if (Number.isInteger(d.featuredBookCount)) setFeaturedBookCount(d.featuredBookCount);
       if (Array.isArray(d.footerBookKeys)) setFooterBookKeys(d.footerBookKeys);
       if (typeof d.siteLocked === 'boolean') setSiteLocked(d.siteLocked);
     } catch (e) {
@@ -2162,9 +2164,34 @@ export default function AdminDashboard() {
     setHeaderSaving(false);
   }
 
+  async function saveFeaturedBookCount(nextCount) {
+    const count = Number(nextCount);
+    if (!Number.isInteger(count) || count < 1 || count > 12) return;
+    setFeaturedBooksSaving(true);
+    try {
+      const response = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          featuredBookCount: count,
+          featuredBookKeys: featuredBookKeys.slice(0, count),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || `Save failed (${response.status})`);
+      setFeaturedBookCount(result.config.featuredBookCount);
+      setFeaturedBookKeys(result.config.featuredBookKeys);
+      toast(`Homepage upper section set to ${count} book${count === 1 ? '' : 's'}, live in ~10s.`, 'success');
+    } catch (error) {
+      toast(`Failed to update homepage count: ${error.message}`, 'error');
+    } finally {
+      setFeaturedBooksSaving(false);
+    }
+  }
+
   async function toggleFeaturedBook(key, checked) {
     const nextKeys = checked
-      ? [...featuredBookKeys.filter(item => item !== key).slice(0, 3), key]
+      ? [...featuredBookKeys.filter(item => item !== key).slice(0, Math.max(0, featuredBookCount - 1)), key]
       : featuredBookKeys.filter(item => item !== key);
     setFeaturedBooksSaving(true);
     try {
@@ -2426,6 +2453,26 @@ export default function AdminDashboard() {
           <div className="panel-body" style={{ color: 'var(--tx2)' }}>Run the publishing catalogue migration before using the normalized classification filters.</div>
         </div>}
         <div className="panel" style={{ marginBottom:'1rem' }}>
+          <div className="panel-head"><span className="panel-title">Homepage upper section</span></div>
+          <div className="panel-body" style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+            <label className="field-label" style={{ margin:0 }}>Books displayed</label>
+            <input
+              type="number"
+              min="1"
+              max="12"
+              className="field-input"
+              style={{ width:90 }}
+              value={featuredBookCount}
+              disabled={featuredBooksSaving}
+              onChange={event => setFeaturedBookCount(event.target.value)}
+              onBlur={event => saveFeaturedBookCount(event.target.value)}
+            />
+            <span style={{ fontSize:12, color:'var(--tx3)' }}>
+              {featuredBookKeys.length}/{featuredBookCount} selected. Check books in the table below to choose the exact titles and order.
+            </span>
+          </div>
+        </div>
+        <div className="panel" style={{ marginBottom:'1rem' }}>
           <div className="panel-body" style={{ display:'flex', gap:.5, flexWrap:'wrap', alignItems:'center', padding:'.75rem' }}>
             <div className="search-wrap">
               <span className="search-icon">🔍</span>
@@ -2526,7 +2573,7 @@ export default function AdminDashboard() {
                 <th>Genre</th>
                 <th>Status</th>
                 <th>Price</th>
-                <th>Homepage banner <span style={{ color:'var(--tx3)', fontWeight:400 }}>({featuredBookKeys.length}/4)</span></th>
+                <th>Homepage upper section <span style={{ color:'var(--tx3)', fontWeight:400 }}>({featuredBookKeys.length}/{featuredBookCount})</span></th>
                 <th>Footer</th>
                 <th style={{ width:120 }}>Actions</th>
               </tr>

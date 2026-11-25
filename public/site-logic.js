@@ -12,7 +12,8 @@ let SERIES = {};
 let BUNDLES = [];
 let PLATFORMS = {};
 let PUBLISHING_TAXONOMY = [];
-let FEATURED_BOOK_KEYS = ['mercer1', 'iran', 'anatomy2', 'chess'];
+let FEATURED_BOOK_KEYS = ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'];
+let FEATURED_BOOK_COUNT = 6;
 let FOOTER_BOOK_KEYS = ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
 let _curBook = null;
 
@@ -99,8 +100,12 @@ async function loadCatalog() {
     PLATFORMS = data.PLATFORMS || {};
     PUBLISHING_TAXONOMY = data.PUBLISHING_TAXONOMY || [];
     FEATURED_BOOK_KEYS = Array.isArray(data.config?.featuredBookKeys)
-      ? data.config.featuredBookKeys.slice(0, 4)
-      : ['mercer1', 'iran', 'anatomy2', 'chess'];
+      ? data.config.featuredBookKeys.slice(0, 12)
+      : ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'];
+    FEATURED_BOOK_COUNT = Number.isInteger(data.config?.featuredBookCount)
+      && data.config.featuredBookCount >= 1
+      ? data.config.featuredBookCount
+      : 6;
     FOOTER_BOOK_KEYS = Array.isArray(data.config?.footerBookKeys)
       ? data.config.footerBookKeys
       : ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
@@ -421,15 +426,32 @@ function renderHomeSeriesGrid(){
 
 function renderHeroMosaic(){
   if (!BOOKS || Object.keys(BOOKS).length === 0) return;
-  const keys = FEATURED_BOOK_KEYS;
-  document.getElementById('hero-mosaic').innerHTML = keys.map(k=>{
+  const keys = FEATURED_BOOK_KEYS.slice(0, FEATURED_BOOK_COUNT);
+  const columns = keys.length <= 3 ? keys.length : keys.length <= 6 ? 3 : keys.length <= 9 ? 3 : 4;
+  const mosaic = document.getElementById('hero-mosaic');
+  mosaic.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+  mosaic.style.maxWidth = keys.length <= 3 ? '240px' : keys.length <= 6 ? '360px' : '420px';
+  mosaic.innerHTML = keys.map(k=>{
     const b=BOOKS[k];
     if(!b) return null;
     const titles = bookTitleValues(b);
     const genres = bookTextValues(b, 'genreLabels', b.genre || '');
+    const images = b.images || {
+      en: b.image_en || b.image || '',
+      fr: b.image_fr || '',
+      es: b.image_es || '',
+    };
+    const coverMarkup = localizedImageMarkup(
+      images,
+      b.image || '',
+      titles,
+      'hmc-cover',
+      b.imageSizes || { en:'large', fr:'large', es:'large' },
+    );
     return `<div class="hero-mini-card" onclick="openBook('${b.key}')">
-      <div class="hero-mini-inner" style="background:${b.color};">
-        <div class="hero-mini-content"><div class="hmc-genre">${localizedTextMarkup(genres)}</div><div class="hmc-title">${localizedTextMarkup(titles)}</div><div class="hmc-orn">${escapeHtml(b.orn)}</div></div>
+      <div class="hero-mini-inner" style="background:${escapeHtml(b.color || '#1C1C1C')};">
+        ${coverMarkup}
+        <div class="hero-mini-content"><div class="hmc-genre">${localizedTextMarkup(genres)}</div><div class="hmc-title">${localizedTextMarkup(titles)}</div></div>
       </div>
     </div>`;
   }).filter(Boolean).join('');

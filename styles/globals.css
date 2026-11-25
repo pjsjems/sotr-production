@@ -328,6 +328,7 @@ nav {
 }
 .hero-mini-card:hover { transform: translateY(-5px); border-color: var(--crimson); box-shadow: 0 8px 24px rgba(122,21,21,0.35); }
 .hero-mini-inner { position: relative; padding-bottom: 148%; }
+.hmc-cover { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .hero-mini-content {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;

@@ -187,11 +187,19 @@ export default async function handler(req, res) {
         socialLinks: config.socialLinks || {},
         footerTagline: config.footerTagline || {},
         headerTagline: config.headerTagline || {},
-        featuredBookKeys: (Array.isArray(config.featuredBookKeys)
-          ? config.featuredBookKeys
-          : ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'])
-          .filter(key => BOOKS[key] && !BOOKS[key].hidden)
-          .slice(0, 4),
+        featuredBookKeys: (() => {
+          const defaults = ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'];
+          const selected = (Array.isArray(config.featuredBookKeys) ? config.featuredBookKeys : defaults)
+            .filter(key => BOOKS[key] && !BOOKS[key].hidden);
+          for (const key of defaults) {
+            if (selected.length >= 12) break;
+            if (!selected.includes(key) && BOOKS[key] && !BOOKS[key].hidden) selected.push(key);
+          }
+          return selected.slice(0, 12);
+        })(),
+        featuredBookCount: Number.isInteger(config.featuredBookCount) && config.featuredBookCount >= 1
+          ? config.featuredBookCount
+          : 6,
         footerBookKeys: (Array.isArray(config.footerBookKeys)
           ? config.footerBookKeys
           : ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'])

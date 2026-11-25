@@ -3,7 +3,7 @@ import { validateSession, parseCookies } from '../../../lib/adminAuth';
 import { parseCatalog, readSiteConfig, writeSiteConfig } from '../../../lib/adminData';
 import { normalizeSiteContent } from '../../../lib/siteContent';
 
-const ALLOWED_KEYS = ['forwardEmail', 'socialLinks', 'footerTagline', 'headerTagline', 'content', 'featuredBookKeys', 'footerBookKeys'];
+const ALLOWED_KEYS = ['forwardEmail', 'socialLinks', 'footerTagline', 'headerTagline', 'content', 'featuredBookKeys', 'featuredBookCount', 'footerBookKeys'];
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -22,15 +22,21 @@ export default async function handler(req, res) {
     const updates = req.body || {};
     try {
       const selectedBookFields = ['featuredBookKeys', 'footerBookKeys'].filter(key => key in updates);
+      if ('featuredBookCount' in updates) {
+        const count = Number(updates.featuredBookCount);
+        if (!Number.isInteger(count) || count < 1 || count > 12) {
+          return res.status(400).json({ error: 'Homepage banner count must be a whole number from 1 to 12.' });
+        }
+      }
       if (selectedBookFields.length) {
         const catalog = await parseCatalog();
         for (const field of selectedBookFields) {
           const keys = updates[field];
           const label = field === 'featuredBookKeys' ? 'homepage banner' : 'footer';
-          if (!Array.isArray(keys) || (field === 'featuredBookKeys' && keys.length > 4) ||
+          if (!Array.isArray(keys) || (field === 'featuredBookKeys' && keys.length > 12) ||
             keys.some(key => typeof key !== 'string')) {
             return res.status(400).json({ error: field === 'featuredBookKeys'
-              ? 'Select no more than four catalog books for the homepage banner.'
+              ? 'Select no more than 12 catalog books for the homepage banner.'
               : 'Footer book selection must be a list of catalog book keys.' });
           }
           if (new Set(keys).size !== keys.length) {
