@@ -99,13 +99,18 @@ async function loadCatalog() {
     BUNDLES   = data.BUNDLES   || [];
     PLATFORMS = data.PLATFORMS || {};
     PUBLISHING_TAXONOMY = data.PUBLISHING_TAXONOMY || [];
-    FEATURED_BOOK_KEYS = Array.isArray(data.config?.featuredBookKeys)
-      ? data.config.featuredBookKeys.slice(0, 12)
-      : ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'];
     FEATURED_BOOK_COUNT = Number.isInteger(data.config?.featuredBookCount)
       && data.config.featuredBookCount >= 1
       ? data.config.featuredBookCount
       : 6;
+    FEATURED_BOOK_KEYS = Array.isArray(data.config?.featuredBookKeys)
+      ? data.config.featuredBookKeys.slice(0, 12)
+      : ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'];
+    const featuredDefaults = ['mercer1', 'iran', 'anatomy2', 'chess', 'atlas', 'neural'];
+    for (const key of featuredDefaults) {
+      if (FEATURED_BOOK_KEYS.length >= FEATURED_BOOK_COUNT) break;
+      if (!FEATURED_BOOK_KEYS.includes(key) && visibleBooks[key]) FEATURED_BOOK_KEYS.push(key);
+    }
     FOOTER_BOOK_KEYS = Array.isArray(data.config?.footerBookKeys)
       ? data.config.footerBookKeys
       : ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
