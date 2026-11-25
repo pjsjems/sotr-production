@@ -111,6 +111,10 @@ async function loadCatalog() {
       if (FEATURED_BOOK_KEYS.length >= FEATURED_BOOK_COUNT) break;
       if (!FEATURED_BOOK_KEYS.includes(key) && visibleBooks[key]) FEATURED_BOOK_KEYS.push(key);
     }
+    for (const key of Object.keys(visibleBooks)) {
+      if (FEATURED_BOOK_KEYS.length >= FEATURED_BOOK_COUNT) break;
+      if (!FEATURED_BOOK_KEYS.includes(key)) FEATURED_BOOK_KEYS.push(key);
+    }
     FOOTER_BOOK_KEYS = Array.isArray(data.config?.footerBookKeys)
       ? data.config.footerBookKeys
       : ['mercer1','mercer7','iran','warorbits','anatomy2','chess','atlas','teacher','neural','invisible','haiti','crooked1'];
